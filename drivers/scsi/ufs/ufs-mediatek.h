@@ -187,15 +187,12 @@ struct ufs_mtk_host {
 	struct clk *crypto_parent_clk_perf;
 	struct mtk_pm_qos_request *req_vcore;
 
-	/* vufs regulator lpm */
-	bool vreg_lpm_supported;
-
 	/*
 	 * RPMB device
 	 */
 	struct scsi_device *sdev_ufs_rpmb;
 	struct rpmb_dev *rawdev_ufs_rpmb;
-	struct mutex rpmb_lock;
+	struct semaphore rpmb_sem;
 
 	bool qos_allowed;
 	bool qos_enabled;

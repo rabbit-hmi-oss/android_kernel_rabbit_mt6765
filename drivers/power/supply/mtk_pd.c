@@ -575,10 +575,10 @@ int __mtk_pdc_get_setting(struct chg_alg_device *alg, int *newvbus, int *newcur,
 		pd->ibus_err,
 		ibus);
 
-	pd_max_watt = cap->max_mv[idx] * (cap->ma[idx]
+	pd_max_watt = cap->max_mv[idx] * ((cap->ma[idx]>2000? 2000:cap->ma[idx])
 			/ 100 * (100 - pd->ibus_err) - 100);
 
-	pd_dbg("pd_max_watt:%d %d %d %d %d\n", idx,
+	pd_dbg("pd_max_watt:%d %d %d(fixed 2A) %d %d\n", idx,
 		cap->max_mv[idx],
 		cap->ma[idx],
 		pd->ibus_err,
@@ -592,11 +592,11 @@ int __mtk_pdc_get_setting(struct chg_alg_device *alg, int *newvbus, int *newcur,
 		chg2_watt,
 		now_max_watt);
 
-	pd_min_watt = cap->max_mv[pd->pd_buck_idx] * cap->ma[pd->pd_buck_idx]
+	pd_min_watt = cap->max_mv[pd->pd_buck_idx] * (cap->ma[pd->pd_buck_idx]>2000? 2000:cap->ma[pd->pd_buck_idx])
 			/ 100 * (100 - pd->ibus_err)
 			- pd->vsys_watt;
 
-	pd_dbg("pd_min_watt:%d %d %d %d %d\n", pd->pd_buck_idx,
+	pd_dbg("pd_min_watt:%d %d %d(fixed 2A) %d %d\n", pd->pd_buck_idx,
 		cap->max_mv[pd->pd_buck_idx],
 		cap->ma[pd->pd_buck_idx],
 		pd->ibus_err,

@@ -2700,6 +2700,9 @@ static int mtk_vdec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 			ret = -EINVAL;
 		}
 		break;
+	case V4L2_CID_MPEG_MTK_GET_LOG:
+		mtk_vcodec_get_log(ctx, ctrl->p_new.p_char);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -2771,6 +2774,10 @@ static int mtk_vdec_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_MTK_OPERATING_RATE:
 		ctx->dec_params.operating_rate = ctrl->val;
 		ctx->dec_param_change |= MTK_DEC_PARAM_OPERATING_RATE;
+		break;
+	case V4L2_CID_MPEG_MTK_REAL_TIME_PRIORITY:
+		ctx->dec_params.priority = ctrl->val;
+		pr_info("%s %d priority %d", __func__, __LINE__, ctx->dec_params.priority);
 		break;
 	case V4L2_CID_MPEG_MTK_QUEUED_FRAMEBUF_COUNT:
 		ctx->dec_params.queued_frame_buf_count = ctrl->val;
@@ -2923,6 +2930,11 @@ int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 
 	ctrl = v4l2_ctrl_new_std(&ctx->ctrl_hdl,
 				&mtk_vcodec_dec_ctrl_ops,
+				V4L2_CID_MPEG_MTK_REAL_TIME_PRIORITY,
+				-128, 1, 1, -128);
+
+	ctrl = v4l2_ctrl_new_std(&ctx->ctrl_hdl,
+				&mtk_vcodec_dec_ctrl_ops,
 				V4L2_CID_MPEG_MTK_QUEUED_FRAMEBUF_COUNT,
 				0, 64, 1, 0);
 
@@ -2930,6 +2942,11 @@ int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 				&mtk_vcodec_dec_ctrl_ops,
 				V4L2_CID_MPEG_MTK_LOG,
 				0, 255, 1, 0);
+
+	ctrl = v4l2_ctrl_new_std(&ctx->ctrl_hdl,
+				&mtk_vcodec_dec_ctrl_ops,
+				V4L2_CID_MPEG_MTK_GET_LOG,
+				0, LOG_PROPERTY_SIZE, 1, 0);
 
 	if (ctx->ctrl_hdl.error) {
 		mtk_v4l2_err("Adding control failed %d",

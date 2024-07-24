@@ -13,10 +13,10 @@ struct GPIO_PINCTRL gpio_pinctrl_list_cam[GPIO_CTRL_STATE_MAX_NUM_CAM] = {
 	{"rst0"},
 	{"vcama_on"},
 	{"vcama_off"},
-	{"vcamd_on"},
-	{"vcamd_off"},
-	{"vcamio_on"},
-	{"vcamio_off"},
+	//{"vcamd_on"},
+	//{"vcamd_off"},
+	//{"vcamio_on"},
+	//{"vcamio_off"},
 };
 
 #ifdef MIPI_SWITCH
@@ -36,12 +36,10 @@ static struct GPIO gpio_instance;
 static enum IMGSENSOR_RETURN gpio_release(void *pinstance)
 {
 	int    i, j;
-	struct platform_device *pplatform_dev = gpimgsensor_hw_platform_device;
 	struct GPIO            *pgpio         = (struct GPIO *)pinstance;
 	enum   IMGSENSOR_RETURN ret           = IMGSENSOR_RETURN_SUCCESS;
 	char *lookup_names = NULL;
 
-	pgpio->ppinctrl = devm_pinctrl_get(&pplatform_dev->dev);
 	if (IS_ERR(pgpio->ppinctrl))
 		return IMGSENSOR_RETURN_ERROR;
 	for (j = IMGSENSOR_SENSOR_IDX_MIN_NUM;

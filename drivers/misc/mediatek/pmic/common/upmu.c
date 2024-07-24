@@ -554,9 +554,36 @@ static struct regmap_bus regmap_pmic_ipi_bus = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_CHRDET_VBUS_DETECTION)
+static irqreturn_t mtk_mt_irq_handler_thread(int irq, void *data)
+{
+	if (pmic_get_register_value(PMIC_RGS_CHRDET)) {
+		pr_info("usb cable in\n");
+		mt_usb_connect_v1();
+	} else {
+		pr_info("usb cable out\n");
+		mt_usb_disconnect_v1();
+	}
+
+	return IRQ_HANDLED;
+}
+
+bool mtk_mt_pmic_get_vcdt(void)
+{
+	if (pmic_get_register_value(PMIC_RGS_CHRDET))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(mtk_mt_pmic_get_vcdt);
+#endif
+
 static int pmic_mt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+#if IS_ENABLED(CONFIG_CHRDET_VBUS_DETECTION)
+	int mt_irq = 0;
+#endif
 
 	chip = dev_get_drvdata(pdev->dev.parent);
 #ifdef IPIMB
@@ -613,6 +640,24 @@ static int pmic_mt_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_MTK_BIF_SUPPORT))
 		pmic_bif_init();
+
+#if IS_ENABLED(CONFIG_CHRDET_VBUS_DETECTION)
+	/*add pmic mt6358 chrdet irq for vbus detection*/
+	mt_irq = platform_get_irq_byname(pdev, "chrdet_edge");
+	if (mt_irq < 0) {
+		pr_info("[PMIC] Get mt irq fail, %d.\n", mt_irq);
+		return mt_irq;
+	}
+
+	ret = devm_request_threaded_irq(&pdev->dev, mt_irq, NULL,
+				   mtk_mt_irq_handler_thread,
+				   IRQF_ONESHOT | IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW,
+				   "chrdet_edge", chip);
+	if (ret) {
+		pr_info("Failed to request mt IRQ: %d: %d\n", mt_irq, ret);
+		return ret;
+	}
+#endif
 
 	return ret;
 }

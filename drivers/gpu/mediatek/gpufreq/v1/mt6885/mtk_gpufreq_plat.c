@@ -799,21 +799,21 @@ static void mt_gpufreq_buck_control(enum mt_power_state power)
 	gpufreq_pr_debug("@%s: power = %d", __func__, power);
 
 	if (power == POWER_ON) {
-		if (regulator_enable(g_pmic->reg_vsram_gpu)) {
-			gpufreq_pr_info("enable VSRAM_GPU failed\n");
-			return;
-		}
 		if (regulator_enable(g_pmic->reg_vgpu)) {
 			gpufreq_pr_info("enable VGPU failed\n");
 			return;
 		}
-	} else {
-		if (regulator_disable(g_pmic->reg_vgpu)) {
-			gpufreq_pr_info("disable VGPU failed\n");
+		if (regulator_enable(g_pmic->reg_vsram_gpu)) {
+			gpufreq_pr_info("enable VSRAM_GPU failed\n");
 			return;
 		}
+	} else {
 		if (regulator_disable(g_pmic->reg_vsram_gpu)) {
 			gpufreq_pr_info("disable VSRAM_GPU failed\n");
+			return;
+		}
+		if (regulator_disable(g_pmic->reg_vgpu)) {
+			gpufreq_pr_info("disable VGPU failed\n");
 			return;
 		}
 	}
@@ -2905,10 +2905,10 @@ static unsigned int __mt_gpufreq_get_cur_freq(void)
 static unsigned int __mt_gpufreq_get_cur_vsram_gpu(void)
 {
 	unsigned int volt = 0;
-
-	/* regulator_get_voltage prints volt with uV */
-	volt = regulator_get_voltage(g_pmic->reg_vsram_gpu) / 10;
-
+	if (regulator_is_enabled(g_pmic->reg_vsram_gpu)) {
+		/* regulator_get_voltage prints volt with uV */
+		volt = regulator_get_voltage(g_pmic->reg_vsram_gpu) / 10;
+	}
 	return volt;
 }
 
@@ -2918,10 +2918,10 @@ static unsigned int __mt_gpufreq_get_cur_vsram_gpu(void)
 static unsigned int __mt_gpufreq_get_cur_vgpu(void)
 {
 	unsigned int volt = 0;
-
-	/* regulator_get_voltage prints volt with uV */
-	volt = regulator_get_voltage(g_pmic->reg_vgpu) / 10;
-
+	if (regulator_is_enabled(g_pmic->reg_vgpu)){
+		/* regulator_get_voltage prints volt with uV */
+		volt = regulator_get_voltage(g_pmic->reg_vgpu) / 10;
+	}
 	return volt;
 }
 

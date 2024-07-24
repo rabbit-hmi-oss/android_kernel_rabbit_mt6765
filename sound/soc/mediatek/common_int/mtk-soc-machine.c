@@ -598,6 +598,22 @@ static struct snd_soc_dai_link mt_soc_dai_common[] = {
 		.codec_name = MT_SOC_CODEC_NAME,
 		.playback_only = true,
 	},
+	{
+		.name = "I2S3DL3OUTPUT",
+		.stream_name = MT_SOC_I2S3_DL3_STREAM_NAME,
+		.cpu_dai_name   = MT_SOC_I2S3DL3_NAME,
+		.platform_name  = MT_SOC_I2S3_DL3_PCM,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+	{
+		.name = "I2S0VUL2CAPTURE",
+		.stream_name = MT_SOC_I2S0VUL2_CAPTURE_STREAM_NAME,
+		.cpu_dai_name   = MT_SOC_I2S0VUL2_NAME,
+		.platform_name  = MT_SOC_I2S0_VUL2_PCM,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
 #ifdef CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT
 	{
 		.name = "DL1SCPSPKOUTPUT",

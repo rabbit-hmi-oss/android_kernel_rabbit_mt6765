@@ -283,4 +283,9 @@ extern void pmic_enable_smart_reset(unsigned char smart_en,
 /*----- BAT_TEMP detection -----*/
 extern void enable_bat_temp_det(bool en);
 
+#if IS_ENABLED(CONFIG_CHRDET_VBUS_DETECTION)
+extern void mt_usb_connect_v1(void);
+extern void mt_usb_disconnect_v1(void);
+#endif
+
 #endif				/* _MT_PMIC_COMMON_H_ */

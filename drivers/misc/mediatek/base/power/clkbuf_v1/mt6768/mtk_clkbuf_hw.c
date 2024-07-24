@@ -771,6 +771,7 @@ EXPORT_SYMBOL(clk_buf_ctrl);
 
 void clk_buf_disp_ctrl(bool onoff)
 {
+#ifndef MT6768_REF_DEV
 	int pwrap_dcxo_en;
 
 	pwrap_dcxo_en = clkbuf_readl(DCXO_ENABLE) & ~DCXO_NFC_ENABLE;
@@ -796,6 +797,29 @@ void clk_buf_disp_ctrl(bool onoff)
 			PMIC_XO_EXTBUF3_EN_M_SHIFT);
 		pmic_clk_buf_swctrl[XO_NFC] = 0;
 	}
+#else
+	if (onoff) {
+		pmic_config_interface(PMIC_DCXO_CW11_CLR_ADDR,
+			PMIC_XO_EXTBUF7_MODE_MASK,
+			PMIC_XO_EXTBUF7_MODE_MASK,
+			PMIC_XO_EXTBUF7_MODE_SHIFT);
+		pmic_config_interface(PMIC_DCXO_CW11_SET_ADDR,
+			PMIC_XO_EXTBUF7_EN_M_MASK,
+			PMIC_XO_EXTBUF7_EN_M_MASK,
+			PMIC_XO_EXTBUF7_EN_M_SHIFT);
+		pmic_clk_buf_swctrl[XO_NFC] = 1;
+	} else {
+		pmic_config_interface(PMIC_DCXO_CW11_CLR_ADDR,
+			PMIC_XO_EXTBUF7_MODE_MASK,
+			PMIC_XO_EXTBUF7_MODE_MASK,
+			PMIC_XO_EXTBUF7_MODE_SHIFT);
+		pmic_config_interface(PMIC_DCXO_CW11_CLR_ADDR,
+			PMIC_XO_EXTBUF7_EN_M_MASK,
+			PMIC_XO_EXTBUF7_EN_M_MASK,
+			PMIC_XO_EXTBUF7_EN_M_SHIFT);
+		pmic_clk_buf_swctrl[XO_NFC] = 0;
+	}
+#endif
 }
 EXPORT_SYMBOL(clk_buf_disp_ctrl);
 

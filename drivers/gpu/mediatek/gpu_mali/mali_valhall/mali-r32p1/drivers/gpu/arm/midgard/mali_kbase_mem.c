@@ -369,6 +369,7 @@ void kbase_remove_va_region(struct kbase_device *kbdev,
 	struct rb_node *rbnext;
 	struct kbase_va_region *next = NULL;
 	struct rb_root *reg_rbtree = NULL;
+	struct kbase_va_region *orig_reg = reg;
 
 	int merged_front = 0;
 	int merged_back = 0;
@@ -465,6 +466,12 @@ void kbase_remove_va_region(struct kbase_device *kbdev,
 		}
 		rb_replace_node(&(reg->rblink), &(free_reg->rblink), reg_rbtree);
 	}
+
+	/* This operation is always safe because the function never frees
+	 * the region. If the region has been merged to both front and back,
+	 * then it's the previous region that is supposed to be freed.
+	 */
+	orig_reg->start_pfn = 0;
 
 out:
 	return;
@@ -1637,7 +1644,28 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 
 	/* Tear down down GPU page tables, depending on memory type. */
 	switch (reg->gpu_alloc->type) {
-	case KBASE_MEM_TYPE_ALIAS: /* Fall-through */
+	case KBASE_MEM_TYPE_ALIAS: {
+		size_t i = 0;
+		struct kbase_mem_phy_alloc *alloc = reg->gpu_alloc;
+
+		/* Due to the way the number of valid PTEs and ATEs are tracked
+		 * currently, only the GPU virtual range that is backed & mapped
+		 * should be passed to the kbase_mmu_teardown_pages() function,
+		 * hence individual aliased regions needs to be unmapped
+		 * separately.
+		 */
+		for (i = 0; i < alloc->imported.alias.nents; i++) {
+			if (alloc->imported.alias.aliased[i].alloc) {
+				err = kbase_mmu_teardown_pages(
+					kctx->kbdev, &kctx->mmu,
+					reg->start_pfn +
+						(i *
+						 alloc->imported.alias.stride),
+					alloc->imported.alias.aliased[i].length,
+					kctx->as_nr);
+			}
+		}
+	} break;
 	case KBASE_MEM_TYPE_IMPORTED_UMM:
 		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
 				reg->start_pfn, reg->nr_pages, kctx->as_nr);
@@ -2238,7 +2266,7 @@ int kbase_alloc_phy_pages_helper(struct kbase_mem_phy_alloc *alloc,
 			&kctx->mem_pools.large[alloc->group_id],
 			 nr_lp * (SZ_2M / SZ_4K),
 			 tp,
-			 true);
+			 true,kctx->task);
 
 		if (res > 0) {
 			nr_left -= res;
@@ -2292,7 +2320,7 @@ int kbase_alloc_phy_pages_helper(struct kbase_mem_phy_alloc *alloc,
 
 				err = kbase_mem_pool_grow(
 					&kctx->mem_pools.large[alloc->group_id],
-					1);
+					1,kctx->task);
 				if (err)
 					break;
 			} while (1);
@@ -2342,7 +2370,7 @@ no_new_partial:
 	if (nr_left) {
 		res = kbase_mem_pool_alloc_pages(
 			&kctx->mem_pools.small[alloc->group_id],
-			nr_left, tp, false);
+			nr_left, tp, false,kctx->task);
 		if (res <= 0)
 			goto alloc_failed;
 	}
@@ -3836,7 +3864,7 @@ static int kbase_jit_grow(struct kbase_context *kctx,
 		spin_unlock(&kctx->mem_partials_lock);
 
 		kbase_gpu_vm_unlock(kctx);
-		ret = kbase_mem_pool_grow(pool, pool_delta);
+		ret = kbase_mem_pool_grow(pool, pool_delta,kctx->task);
 		kbase_gpu_vm_lock(kctx);
 
 		if (ret)

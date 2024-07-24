@@ -277,7 +277,7 @@ static int battery_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		/* 1 = META_BOOT, 4 = FACTORY_BOOT 5=ADVMETA_BOOT */
 		/* 6= ATE_factory_boot */
-		if (gm->bootmode == 1 || gm->bootmode == 4
+		if (gm->bootmode == 1 /*|| gm->bootmode == 4*/
 			|| gm->bootmode == 5 || gm->bootmode == 6) {
 			val->intval = 75;
 			break;
@@ -396,7 +396,7 @@ static void mtk_battery_external_power_changed(struct power_supply *psy)
 
 	if (IS_ERR_OR_NULL(chg_psy)) {
 		chg_psy = devm_power_supply_get_by_phandle(&gm->gauge->pdev->dev,
-							   "charger");
+							   "mt6370_pmu_charger"/*"charger"*/);
 		bm_err("%s retry to get chg_psy\n", __func__);
 		bs_data->chg_psy = chg_psy;
 	} else {
@@ -412,6 +412,8 @@ static void mtk_battery_external_power_changed(struct power_supply *psy)
 			if (status.intval == POWER_SUPPLY_STATUS_NOT_CHARGING)
 				bs_data->bat_status =
 					POWER_SUPPLY_STATUS_NOT_CHARGING;
+			else if (status.intval == POWER_SUPPLY_STATUS_FULL)
+				bs_data->bat_status = POWER_SUPPLY_STATUS_FULL;
 			else
 				bs_data->bat_status =
 					POWER_SUPPLY_STATUS_CHARGING;

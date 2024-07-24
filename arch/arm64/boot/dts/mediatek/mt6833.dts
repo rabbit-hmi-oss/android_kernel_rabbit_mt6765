@@ -849,16 +849,19 @@
 		#clock-cells=<1>;
 	};
 
-        efuse: efuse@11c10000 {
-                compatible = "mediatek,devinfo";
-                reg = <0 0x11c10000 0 0x10000>;
-                #address-cells = <1>;
-                #size-cells = <1>;
+	efuse: efuse@11c10000 {
+		compatible = "mediatek,devinfo";
+		reg = <0 0x11c10000 0 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-                efuse_segment: segment@78 {
-                        reg = <0x78 0x4>;
-                };
-        };
+		efuse_segment: segment@78 {
+			reg = <0x78 0x4>;
+		};
+		u2_phy_data: u2_phy_data {
+			reg = <0x1b0 0x4>;
+		};
+	};
 
 	dcm: dcm@10001000 {
 		compatible = "mediatek,mt6833-dcm";
@@ -1108,7 +1111,7 @@
 			<0 0>;
 
 		vcc-supply = <&mt_pmic_vemc_ldo_reg>;
-		vccq2-supply = <&mt_pmic_vufs_ldo_reg>;
+		vcc-fixed-regulator;
 
 		resets = <&infracfg_rst 0>, <&infracfg_rst 1>,
 				 <&infracfg_rst 2>;
@@ -3064,6 +3067,11 @@
 			mediatek,host-eye-term = <5>; /* 0~7 */
 			mediatek,host-eye-rev6 = <1>; /* 0~3 */
 			mediatek,host-eye-disc = <0>; /* 0~8 */
+			mediatek,rx-sqth = <5>;
+			mediatek,rev4 = <1>;
+			nvmem-cells = <&u2_phy_data>;
+			nvmem-cell-names = "intr_cal";
+			nvmem-cell-masks = <0x1f>;
 			status = "okay";
 		};
 	};
@@ -4309,6 +4317,11 @@
 		mt6382_nfc_srclk = <&pio 25 0x0>;
 		status = "okay";
 	};
+
+	mtee_svp: mtee_svp {
+		compatible = "medaitek,svp";
+	};
+	/* svp end */
 
 #if defined(CONFIG_MTK_MT6382_BDG)
 	mt6382_eint: mt6382_eint {
@@ -6232,11 +6245,6 @@
 #include "mediatek/mt6359p.dtsi"
 #include "mediatek/mt6833-clkitg.dtsi"
 #include "mediatek/v1/mt6360.dtsi"
-
-&mt_pmic_vemc_ldo_reg {
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
-};
 
 &spmi_bus {
 	grpid = <11>;

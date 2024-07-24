@@ -126,6 +126,8 @@ static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
 	 FP5510E2AF_Release, FP5510E2AF_GetFileName, NULL},
 	{1, AFDRV_DW9718AF, DW9718AF_SetI2Cclient, DW9718AF_Ioctl,
 	 DW9718AF_Release, DW9718AF_GetFileName, NULL},
+	{1, AFDRV_DW9718GAF, DW9718GAF_SetI2Cclient, DW9718GAF_Ioctl,
+	 DW9718GAF_Release, DW9718GAF_GetFileName, NULL},
 	{1, AFDRV_GT9764AF, GT9764AF_SetI2Cclient, GT9764AF_Ioctl,
 	GT9764AF_Release, GT9764AF_GetFileName, NULL},
 //#ifdef SUPPORT_GT9768AF
@@ -171,8 +173,8 @@ static struct pinctrl_state *vcamaf_pio_on;
 static struct pinctrl_state *vcamaf_pio_off;
 
 #define CAMAF_PMIC     "camaf_m1_pmic"
-#define CAMAF_GPIO_ON  "camaf_m1_gpio_on"
-#define CAMAF_GPIO_OFF "camaf_m1_gpio_off"
+#define CAMAF_GPIO_ON  "cam0_ldo_vcamaf_1"
+#define CAMAF_GPIO_OFF "cam0_ldo_vcamaf_0"
 
 static void camaf_power_init(void)
 {

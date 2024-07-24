@@ -31,6 +31,10 @@ endif
 
 obj-$(CONFIG_MTK_HDMI_TDM) += mtk-soc-pcm-hdmi.o
 
+ifeq ($(CONFIG_MACH_MT6771),y)
+subdir-ccflags-y += -DMT6771_SND_SOC
+endif
+
 # Feature support
 ifeq ($(CONFIG_SND_SOC_MTK_AUDIO_DSP),y)
 ifeq ($(CONFIG_MACH_MT6779),y)
@@ -82,7 +86,7 @@ obj-$(CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT) += mtk-soc-spkprotect-common.o mt
 obj-y += mtk-soc-pcm-capture.o mtk-soc-pcm-dl1.o mtk-soc-pcm-dummy.o mtk-soc-pcm-routing.o mtk-soc-pcm-capture2.o mtk-soc-pcm-i2s2-adc2.o
 obj-y += mtk-soc-pcm-voice-md1.o mtk-soc-pcm-voice-md2.o mtk-soc-pcm-voice-md1-bt.o mtk-soc-pcm-voice-md2-bt.o
 obj-y += mtk-soc-pcm-voice-usb.o mtk-soc-pcm-voice-usb-echoref.o
-obj-y += mtk-soc-pcm-dl1-i2s0.o mtk-soc-pcm-dl1-i2s0Dl1.o mtk-soc-pcm-i2s0-awb.o
+obj-y += mtk-soc-pcm-dl1-i2s0.o mtk-soc-pcm-dl1-i2s0Dl1.o mtk-soc-pcm-i2s0-awb.o mtk-soc-pcm-dl3-i2s3.o mtk-soc-i2s0-vul2-capture.o
 #obj-y += mtk-soc-pcm-hdmi.o
 obj-y += mtk-soc-pcm-uldlloopback.o mtk-soc-pcm-dl2.o mtk-soc-pcm-deep-buffer-dl.o
 #obj-y += mtk-soc-pcm-mod-dai.o

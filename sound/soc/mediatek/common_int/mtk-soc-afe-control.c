@@ -73,6 +73,8 @@
 #include <mtk_vcorefs_manager.h>
 #endif
 
+int I2S0_I2S3_4pin_ctrl;
+
 static DEFINE_SPINLOCK(afe_control_lock);
 static DEFINE_SPINLOCK(afe_sram_control_lock);
 static DEFINE_SPINLOCK(afe_mem_blk_dl1_lock);
@@ -193,6 +195,7 @@ static void AfeGlobalVarInit(void)
 	AudioDaiBt = NULL;
 	mExternalModemStatus = false;
 	irqcount = 0;
+	I2S0_I2S3_4pin_ctrl = 0;
 }
 
 void AfeControlMutexLock(void)
@@ -889,27 +892,30 @@ bool Set2ndI2SOut(struct audio_digital_i2s *DigtalI2S)
 {
 	unsigned int u32AudioI2S = 0;
 
-	memcpy((void *)m2ndI2Sout, (void *)DigtalI2S,
-	       sizeof(struct audio_digital_i2s));
-	u32AudioI2S = SampleRateTransform(m2ndI2Sout->mI2S_SAMPLERATE,
-					  Soc_Aud_Digital_Block_I2S_OUT_2)
-		      << 8;
-	u32AudioI2S |= m2ndI2Sout->mLR_SWAP << 31;
-	u32AudioI2S |= m2ndI2Sout->mI2S_HDEN << 12;
-	u32AudioI2S |= m2ndI2Sout->mINV_LRCK << 5;
-	u32AudioI2S |= m2ndI2Sout->mI2S_FMT << 3;
-	u32AudioI2S |= m2ndI2Sout->mI2S_WLEN << 1;
-	Afe_Set_Reg(AFE_I2S_CON3, u32AudioI2S, AFE_MASK_ALL);
+	if(!I2S0_I2S3_4pin_ctrl) {
+		memcpy((void *)m2ndI2Sout, (void *)DigtalI2S,
+				sizeof(struct audio_digital_i2s));
+		u32AudioI2S = SampleRateTransform(m2ndI2Sout->mI2S_SAMPLERATE,
+						Soc_Aud_Digital_Block_I2S_OUT_2) << 8;
+		u32AudioI2S |= m2ndI2Sout->mLR_SWAP << 31;
+		u32AudioI2S |= m2ndI2Sout->mI2S_HDEN << 12;
+		u32AudioI2S |= m2ndI2Sout->mINV_LRCK << 5;
+		u32AudioI2S |= m2ndI2Sout->mI2S_FMT << 3;
+		u32AudioI2S |= m2ndI2Sout->mI2S_WLEN << 1;
+		Afe_Set_Reg(AFE_I2S_CON3, u32AudioI2S, AFE_MASK_ALL);
+	}
 
 	return true;
 }
 
 bool Set2ndI2SOutEnable(bool benable)
 {
-	if (benable)
-		Afe_Set_Reg(AFE_I2S_CON3, 0x1, 0x1);
-	else
-		Afe_Set_Reg(AFE_I2S_CON3, 0x0, 0x1);
+	if (!I2S0_I2S3_4pin_ctrl) {
+		if (benable)
+			Afe_Set_Reg(AFE_I2S_CON3, 0x1, 0x1);
+		else
+			Afe_Set_Reg(AFE_I2S_CON3, 0x0, 0x1);
+	}
 
 	return true;
 }
@@ -1339,7 +1345,8 @@ bool set_adc2_enable(bool enable)
 
 bool Set2ndI2SEnable(bool bEnable)
 {
-	Afe_Set_Reg(AFE_I2S_CON, bEnable, 0x1);
+	if (!I2S0_I2S3_4pin_ctrl)
+		Afe_Set_Reg(AFE_I2S_CON, bEnable, 0x1);
 
 	return true;
 }
@@ -1750,29 +1757,35 @@ bool Set2ndI2SIn(struct audio_digital_i2s *mDigitalI2S)
 {
 	unsigned int Audio_I2S_Adc = 0;
 
-	memcpy((void *)m2ndI2S, (void *)mDigitalI2S,
-	       sizeof(struct audio_digital_i2s));
+	if (!I2S0_I2S3_4pin_ctrl) {
+		memcpy((void *)m2ndI2S, (void *)mDigitalI2S,
+				sizeof(struct audio_digital_i2s));
 
-	if (!m2ndI2S->mI2S_SLAVE) { /* Master setting SampleRate only */
-		SetSampleRate(Soc_Aud_Digital_Block_MEM_I2S,
-			      m2ndI2S->mI2S_SAMPLERATE);
+		if (!m2ndI2S->mI2S_SLAVE) { /* Master setting SampleRate only */
+			SetSampleRate(Soc_Aud_Digital_Block_MEM_I2S,
+					m2ndI2S->mI2S_SAMPLERATE);
+		}
+
+		Audio_I2S_Adc |= (m2ndI2S->mINV_LRCK << 5);
+		Audio_I2S_Adc |= (m2ndI2S->mI2S_FMT << 3);
+		Audio_I2S_Adc |= (m2ndI2S->mI2S_SLAVE << 2);
+		Audio_I2S_Adc |= (m2ndI2S->mI2S_WLEN << 1);
+		Audio_I2S_Adc |= (m2ndI2S->mI2S_IN_PAD_SEL << 28);
+		Afe_Set_Reg(AFE_I2S_CON, Audio_I2S_Adc, 0xfffffffe);
 	}
-
-	Audio_I2S_Adc |= (m2ndI2S->mINV_LRCK << 5);
-	Audio_I2S_Adc |= (m2ndI2S->mI2S_FMT << 3);
-	Audio_I2S_Adc |= (m2ndI2S->mI2S_SLAVE << 2);
-	Audio_I2S_Adc |= (m2ndI2S->mI2S_WLEN << 1);
-	Audio_I2S_Adc |= (m2ndI2S->mI2S_IN_PAD_SEL << 28);
-	Afe_Set_Reg(AFE_I2S_CON, Audio_I2S_Adc, 0xfffffffe);
 
 	return true;
 }
 
 bool Set2ndI2SInEnable(bool bEnable)
 {
-	m2ndI2S->mI2S_EN = bEnable;
-	Afe_Set_Reg(AFE_I2S_CON, bEnable, 0x1);
-	mAudioMEMIF[Soc_Aud_Digital_Block_I2S_IN_2]->mState = bEnable;
+	pr_debug("%s, bEnable = %d", __func__, bEnable);
+
+	if (!I2S0_I2S3_4pin_ctrl) {
+		m2ndI2S->mI2S_EN = bEnable;
+		Afe_Set_Reg(AFE_I2S_CON, bEnable, 0x1);
+		mAudioMEMIF[Soc_Aud_Digital_Block_I2S_IN_2]->mState = bEnable;
+	}
 
 	return true;
 }
@@ -4250,6 +4263,9 @@ get_dlmem_frame_index(struct snd_pcm_substream *substream,
 			HW_Cur_ReadIdx = Afe_Get_Reg(AFE_DL2_CUR);
 			break;
 		case Soc_Aud_Digital_Block_MEM_DL3:
+#ifdef MT6771_SND_SOC
+			HW_Cur_ReadIdx = Afe_Get_Reg(AFE_DL3_CUR);
+#endif
 			break;
 		default:
 			pr_info("%s err mem_block = %d", __func__, mem_block);
@@ -4973,8 +4989,13 @@ int set_memif_addr(int mem_blk, dma_addr_t addr, size_t size)
 		Afe_Set_Reg(AFE_AWB_BASE, addr, 0xffffffff);
 		Afe_Set_Reg(AFE_AWB_END, addr + (size - 1), 0xffffffff);
 		break;
-	case Soc_Aud_Digital_Block_MEM_DL1_DATA2:
 	case Soc_Aud_Digital_Block_MEM_DL3:
+#ifdef MT6771_SND_SOC
+		Afe_Set_Reg(AFE_DL3_BASE, addr, 0xffffffff);
+		Afe_Set_Reg(AFE_DL3_END, addr + (size - 1), 0xffffffff);
+		break;
+#endif
+	case Soc_Aud_Digital_Block_MEM_DL1_DATA2:
 	case Soc_Aud_Digital_Block_MEM_HDMI:
 	default:
 		pr_warn("%s not suuport mem_blk = %d", __func__, mem_blk);

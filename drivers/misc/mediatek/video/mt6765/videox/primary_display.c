@@ -117,8 +117,6 @@ static unsigned int gPresentFenceIndex;
 unsigned int gTriggerDispMode;
 static unsigned int g_keep;
 static unsigned int g_skip;
-int g_idle_skip;
-int g_idle_skip_trigger;
 /*DynFPS for debug*/
 bool g_force_cfg;
 unsigned int g_force_cfg_id;
@@ -3466,8 +3464,6 @@ static int _ovl_fence_release_callback(unsigned long userdata)
 			MMPROFILE_FLAG_END,
 			!primary_display_is_decouple_mode(), bandwidth);
 #endif
-	if (primary_display_is_video_mode())
-		primary_display_wakeup_pf_thread();
 
 	mmprofile_log_ex(ddp_mmp_get_events()->session_release,
 		MMPROFILE_FLAG_END, 1, userdata);
@@ -4185,10 +4181,7 @@ int primary_display_init(char *lcm_name, unsigned int lcm_fps,
 	disp_switch_data.state = DISP_ALIVE;
 	ret = switch_dev_register(&disp_switch_data);
 #endif
-#ifdef CONFIG_MTK_HIGH_FRAME_RATE
-	/*DynFPS*/
-	primary_display_init_multi_cfg_info();
-#endif
+
 	DISPCHECK("primary_display_init done\n");
 
 done:
@@ -5434,11 +5427,6 @@ static int primary_display_trigger_nolock(int blocking, void *callback,
 		DISPWARN("%s, skip because primary dipslay is slept\n",
 			__func__);
 		goto done;
-	}
-
-	if (g_idle_skip_trigger == 0){
-		g_idle_skip++;
-		g_idle_skip_trigger++;
 	}
 	primary_display_idlemgr_kick(__func__, 0);
 

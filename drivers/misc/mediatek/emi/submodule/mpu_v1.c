@@ -38,7 +38,9 @@ static void __iomem *CEN_EMI_BASE;
 
 static void (*check_violation_cb)(void);
 static const char *UNKNOWN_MASTER = "unknown";
+#ifndef USER_BUILD_KERNEL
 static unsigned int show_region;
+#endif
 
 #ifdef MPU_BYPASS
 static unsigned int init_flag;
@@ -298,6 +300,7 @@ int emi_mpu_clear_protection(struct emi_region_info_t *region_info)
 	return 0;
 }
 
+#ifndef USER_BUILD_KERNEL
 static ssize_t mpu_config_show(struct device_driver *driver, char *buf)
 {
 	ssize_t ret = 0;
@@ -487,6 +490,7 @@ mpu_store_end:
 }
 
 static DRIVER_ATTR_RW(mpu_config);
+#endif
 
 #if ENABLE_AP_REGION
 static void protect_ap_region(void)

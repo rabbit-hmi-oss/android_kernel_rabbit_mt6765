@@ -354,13 +354,6 @@ mt_ptp_unlock(unsigned long *flags)
 	pr_notice("[Power/CPU_Thermal]%s doesn't exist\n", __func__);
 }
 
-	int __attribute__ ((weak))
-get_wd_api(struct wd_api **obj)
-{
-	pr_notice("[Power/CPU_Thermal]%s doesn't exist\n", __func__);
-	return -1;
-}
-
 void mt_reg_sync_writel_print(unsigned int val, void *addr)
 {
 	if (lvts_debug_log)
@@ -1580,13 +1573,18 @@ int temperature, int temperature2, int tc_num)
 #endif
 
 #ifndef CONFIG_LVTS_DYNAMIC_ENABLE_REBOOT
+
+		/* set offset to 0x3FFF to avoid interrupt false triggered */
+		/* large offset can guarantee temp check is always false */
+		temp = readl(offset + LVTSPROTCTL_0);
+		mt_reg_sync_writel_print(temp | 0x3FFF, offset + LVTSPROTCTL_0);
+
 		temp = readl(offset + LVTSMONINT_0);
 		/* disable trigger SPM interrupt */
-			mt_reg_sync_writel_print(temp & 0x00000000,
-				offset + LVTSMONINT_0);
+		mt_reg_sync_writel_print(temp & ~STAGE3_INT_EN, offset + LVTSMONINT_0);
 #endif
 
-		temp = readl(offset + LVTSPROTCTL_0) & ~(0xF << 16);
+		temp = readl(offset + LVTSPROTCTL_0);
 #if LVTS_USE_DOMINATOR_SENSING_POINT
 		/* Select protection sensor */
 		config = ((d_index << 2) + 0x2) << 16;
@@ -1603,9 +1601,14 @@ int temperature, int temperature2, int tc_num)
 		mt_reg_sync_writel_print(raw_high, offset + LVTSPROTTC_0);
 
 #ifndef CONFIG_LVTS_DYNAMIC_ENABLE_REBOOT
+		temp = readl(offset + LVTSMONINT_0);
 		/* enable trigger Hot SPM interrupt */
-			mt_reg_sync_writel_print(temp | 0x80000000,
-				offset + LVTSMONINT_0);
+		mt_reg_sync_writel_print(temp | STAGE3_INT_EN, offset + LVTSMONINT_0);
+
+		/* clear offset after HW reset are configured. */
+		/* make sure LVTS controller uses latest sensor value to compare */
+		mt_reg_sync_writel_print(
+			readl(offset + LVTSPROTCTL_0) & ~PROTOFFSET, offset + LVTSPROTCTL_0);
 #endif
 	} else
 		pr_notice("Error: %d wrong tc_num value: %d\n",
@@ -2058,31 +2061,32 @@ void lvts_tscpu_thermal_initial_all_tc(void)
 
 static void lvts_disable_rgu_reset(void)
 {
-	struct wd_api *wd_api;
+	unsigned int tmp;
 
-	if (get_wd_api(&wd_api) >= 0) {
-		/* reset mode */
-		wd_api->wd_thermal_direct_mode_config(
-				WD_REQ_DIS, WD_REQ_RST_MODE);
+	tmp = __raw_readl(MTK_WDT_REQ_MODE);
+	tmp |=  MTK_WDT_REQ_MODE_KEY;
+	tmp &=  ~(MTK_WDT_REQ_MODE_THERMAL);
+	mt_reg_sync_writel_print(tmp, MTK_WDT_REQ_MODE);
 
-	} else {
-		lvts_warn("%d FAILED TO GET WD API\n", __LINE__);
-		WARN_ON_ONCE(1);
-	}
+	tmp = __raw_readl(MTK_WDT_REQ_IRQ_EN);
+	tmp |= MTK_WDT_REQ_IRQ_KEY;
+	tmp &=  ~(MTK_WDT_REQ_IRQ_THERMAL_EN);
+	mt_reg_sync_writel_print(tmp, MTK_WDT_REQ_IRQ_EN);
 }
 
 static void lvts_enable_rgu_reset(void)
 {
-	struct wd_api *wd_api;
+	unsigned int tmp;
 
-	if (get_wd_api(&wd_api) >= 0) {
-		/* reset mode */
-		wd_api->wd_thermal_direct_mode_config(
-				WD_REQ_EN, WD_REQ_RST_MODE);
-	} else {
-		lvts_warn("%d FAILED TO GET WD API\n", __LINE__);
-		WARN_ON_ONCE(1);
-	}
+	tmp = __raw_readl(MTK_WDT_REQ_MODE);
+	tmp |=  MTK_WDT_REQ_MODE_KEY;
+	tmp |= (MTK_WDT_REQ_MODE_THERMAL);
+	mt_reg_sync_writel_print(tmp, MTK_WDT_REQ_MODE);
+
+	tmp = __raw_readl(MTK_WDT_REQ_IRQ_EN);
+	tmp |= MTK_WDT_REQ_IRQ_KEY;
+	tmp &=  ~(MTK_WDT_REQ_IRQ_THERMAL_EN);
+	mt_reg_sync_writel_print(tmp, MTK_WDT_REQ_IRQ_EN);
 }
 
 void lvts_config_all_tc_hw_protect(int temperature, int temperature2)

@@ -45,6 +45,7 @@
 
 #include "mtk_charger_intf.h"
 
+int check_cable_in;
 struct tag_bootmode {
 	u32 size;
 	u32 tag;
@@ -203,6 +204,11 @@ static int mt_charger_online(struct mt_charger *mtk_chg)
 	return ret;
 }
 
+int mt_check_cable_in(void)
+{
+	return check_cable_in;
+}
+
 /* Power Supply Functions */
 static int mt_charger_get_property(struct power_supply *psy,
 	enum power_supply_property psp, union power_supply_propval *val)
@@ -242,8 +248,9 @@ static int mt_charger_get_property(struct power_supply *psy,
 			pr_info("%s: Charger Type: CHARGER_UNKNOWN\n", __func__);
 			break;
 		default:
+			break;
+		}
 		break;
-	}
 	default:
 		return -EINVAL;
 	}
@@ -424,6 +431,8 @@ static void plug_in_out_handler(struct chg_type_info *cti, bool en, bool ignore)
 	cti->chgdet_en = en;
 	cti->ignore_usb = ignore;
 	cti->plugin = en;
+	check_cable_in = en;
+	chr_err("%s, check_cable_in: %d\n", __func__, check_cable_in);
 	atomic_inc(&cti->chgdet_cnt);
 	wake_up_interruptible(&cti->waitq);
 skip:
@@ -715,6 +724,8 @@ static int mt_charger_probe(struct platform_device *pdev)
 	struct tag_bootmode *tag = NULL;
 	int boot_mode = 11;//UNKNOWN_BOOT
 
+	check_cable_in = 0;
+	chr_err("%s: check_cable_in: %d\n", __func__, check_cable_in);
 	pr_info("%s\n", __func__);
 
 	mt_chg = devm_kzalloc(&pdev->dev, sizeof(*mt_chg), GFP_KERNEL);

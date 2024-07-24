@@ -37,10 +37,11 @@
 			linux,keycodes = <116>;
 			wakeup-source;
 		};
-
+/*
 		home {
 			linux,keycodes = <115>;
 		};
+*/
 	};
 
 	pmic_auxadc: pmic_auxadc {

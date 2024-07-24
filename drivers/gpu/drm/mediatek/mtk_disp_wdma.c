@@ -1116,6 +1116,10 @@ static void mtk_wdma_addon_config(struct mtk_ddp_comp *comp,
 		return;
 	}
 	cfg_info->addr = addr;
+#ifdef CONFIG_MTK_IOMMU_V2
+	DDPINFO("%s WDMA config iommu, CRTC%d\n", __func__, crtc_idx);
+	mtk_ddp_comp_iommu_enable(comp, handle);
+#endif
 	mtk_ddp_write(comp, addr & 0xFFFFFFFFU,
 		DISP_REG_WDMA_DST_ADDR0, handle);
 

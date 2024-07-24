@@ -103,6 +103,12 @@ struct battery_thermal_protection_data {
 };
 
 /* sw jeita */
+#define JEITA_TEMP_ABOVE_T4_CC	0
+#define JEITA_TEMP_T3_TO_T4_CC	1000000
+#define JEITA_TEMP_T2_TO_T3_CC	2000000
+#define JEITA_TEMP_T1_TO_T2_CC	2000000
+#define JEITA_TEMP_T0_TO_T1_CC	1000000
+#define JEITA_TEMP_BELOW_T0_CC	0
 #define JEITA_TEMP_ABOVE_T4_CV	4240000
 #define JEITA_TEMP_T3_TO_T4_CV	4240000
 #define JEITA_TEMP_T2_TO_T3_CV	4340000
@@ -142,6 +148,8 @@ struct sw_jeita_data {
 	int sm;
 	int pre_sm;
 	int cv;
+	int pre_cv;
+	int cc;
 	bool charging;
 	bool error_recovery_flag;
 };
@@ -167,6 +175,12 @@ struct charger_custom_data {
 	int charging_host_charger_current;
 
 	/* sw jeita */
+	int jeita_temp_above_t4_cc;
+	int jeita_temp_t3_to_t4_cc;
+	int jeita_temp_t2_to_t3_cc;
+	int jeita_temp_t1_to_t2_cc;
+	int jeita_temp_t0_to_t1_cc;
+	int jeita_temp_below_t0_cc;
 	int jeita_temp_above_t4_cv;
 	int jeita_temp_t3_to_t4_cv;
 	int jeita_temp_t2_to_t3_cv;

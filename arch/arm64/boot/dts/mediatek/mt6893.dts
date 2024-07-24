@@ -2530,6 +2530,7 @@ page_owner=on loop.max_part=7";
 		charger = <&mt6360_chg>;
 		dev-conn = <&ssusb>;
 		mediatek,bypss-typec-sink = <1>;
+		not_support_u3;
 	};
 
 	mmc0: mmc@11230000 {
@@ -3299,6 +3300,9 @@ page_owner=on loop.max_part=7";
 		mediatek,chain_length = <0x4c08>;
 		mediatek,rg_dfd_timeout = <0xa0>;
 		mediatek,check_dfd_support = <1>;
+		mediatek,dfd_infra_base = <0x34>;
+		mediatek,dfd_ap_addr_offset = <24>;
+		mediatek,dfd_latch_offset = <0x44>;
 	};
 
 	dfd_cache: dfd_cache {
@@ -3542,115 +3546,6 @@ page_owner=on loop.max_part=7";
 		io-channel-names = "thermistor-ch2";
 	};
 
-
-
-	vtskin: vtskin {
-		compatible = "mediatek,mt6893-virtual-tskin";
-
-		 num-sensor =  <4>;
-		#thermal-sensor-cells = <1>;
-
-		vtskin-max {
-
-			ref-num = <2>;
-			operation = "OP_MAX";
-			vtskin_coef_0{
-				sensor-name = "vtskin1";
-				sensor-coeff = <0>;
-			};
-			vtskin_coef_1{
-				sensor-name = "vtskin2";
-				sensor-coeff = <0>;
-			};
-
-		};
-
-
-		vtskin1 {
-			ref-num = <4>;
-			operation = "OP_COEF";
-
-			vtskin_coef_0{
-				sensor-name  = "mtktscpu";
-				sensor-coeff = <2>;
-			};
-
-			vtskin_coef_1{
-				sensor-name  = "mtktsAP";
-				sensor-coeff  = <3>;
-			};
-
-			vtskin_coef_2{
-				sensor-name  = "mtktsbtsnrpa";
-				sensor-coeff = <4>;
-			};
-
-			vtskin_coef_3{
-				sensor-name  = "mtktswmt";
-				sensor-coeff  = <5>;
-			};
-
-		};
-
-
-
-		vtskin2{
-
-			ref-num = <4>;
-			operation = "OP_COEF";
-			vtskin_coef_0{
-				sensor-name  = "mtktscpu";
-				sensor-coeff  = <3>;
-			};
-
-			vtskin_coef_1{
-				sensor-name  = "mtktsAP";
-				sensor-coeff = <4>;
-			};
-
-			vtskin_coef_2{
-				sensor-name = "mtktsbtsnrpa";
-				sensor-coeff = <5>;
-			};
-
-			vtskin_coef_3{
-				sensor-name  = "mtktswmt";
-				sensor-coeff = <8>;
-			};
-
-		};
-
-
-
-		vtskin3{
-
-			ref-num = <4>;
-			operation = "OP_COEF";
-
-			vtskin_coef_0{
-				sensor-name  = "mtktscpu";
-				sensor-coeff  = <1>;
-			};
-
-			vtskin_coef_1{
-				sensor-name  = "mtktsAP";
-				sensor-coeff = <6>;
-			};
-
-			vtskin_coef_2{
-				sensor-name = "mtktsbtsnrpa";
-				sensor-coeff = <8>;
-			};
-
-			vtskin_coef_3{
-				sensor-name  = "mtktswmt";
-				sensor-coeff = <7>;
-			};
-
-		};
-
-	};
-
 	mt6315_them_intr {
 		compatible = "mediatek,mt6315_therm_intr";
 		interrupts-extended =
@@ -3837,6 +3732,11 @@ page_owner=on loop.max_part=7";
 	irq_nfc: irq_nfc {
 		compatible = "mediatek,irq_nfc-eint";
 	};
+
+	mtee_svp: mtee_svp {
+		compatible = "medaitek,svp";
+	};
+	/* svp end */
 
 	mdp_mutex: mdp_mutex@1f001000 {
 		compatible = "mediatek,mdp_mutex";
@@ -8843,11 +8743,6 @@ page_owner=on loop.max_part=7";
 #include "mediatek/mt6359p.dtsi"
 #include "mediatek/cust_mt6893_msdc.dtsi"
 #include "mediatek/v1/mt6360_pd.dtsi"
-
-&mt_pmic_vemc_ldo_reg {
-	regulator-min-microvolt = <2500000>;
-	regulator-max-microvolt = <2500000>;
-};
 
 #ifdef CONFIG_MTK_ENABLE_GENIEZONE
 #include "mediatek/trusty.dtsi"

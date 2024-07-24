@@ -135,6 +135,9 @@ struct mt6360_chg_platform_data {
 #define MT6360_MASK_DISCHG	BIT(2)
 #define MT6360_SHFT_DISCHG	(2)
 
+/* MT6360_PMU_CHG_HIDDEN_CTRL22 : 0x45 */
+#define MT6360_MASK_BATOVP_LVL (0x60)
+
 /* MT6360_PMU_CHG_STAT : 0x4A */
 #define MT6360_MASK_CHG_STAT	(0xC0)
 #define MT6360_SHFT_CHG_STAT	(6)

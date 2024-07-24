@@ -788,6 +788,15 @@ int charger_dev_enable_bleed_discharge(struct charger_device *charger_dev,
 }
 EXPORT_SYMBOL(charger_dev_enable_bleed_discharge);
 
+int charger_dev_get_ext_chgtyp(struct charger_device *chg_dev)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL && chg_dev->ops->get_ext_chgtyp)
+		return chg_dev->ops->get_ext_chgtyp(chg_dev);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_get_ext_chgtyp);
+
 static DEVICE_ATTR(name, 0444, charger_show_name, NULL);
 
 static struct attribute *charger_class_attrs[] = {

@@ -118,6 +118,13 @@ MODULE_PARM_DESC(use_vmalloc, "Use vmalloc for PCM intermediate buffers (default
 static DEFINE_MUTEX(register_mutex);
 static struct snd_usb_audio *usb_chip[SNDRV_CARDS];
 static struct usb_driver usb_audio_driver;
+static bool usb_audio_active = false;
+
+bool snd_usb_is_actived(void)
+{
+	return usb_audio_active;
+}
+EXPORT_SYMBOL_GPL(snd_usb_is_actived);
 
 /**
  * find_snd_usb_substream - helper API to find usb substream context
@@ -757,6 +764,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 
 	usb_chip[chip->index] = chip;
 	chip->num_interfaces++;
+	usb_audio_active = true;
 	usb_set_intfdata(intf, chip);
 
 	/* enable auto suspend */
@@ -774,8 +782,10 @@ static int usb_audio_probe(struct usb_interface *intf,
 		 * decrement before memory is possibly returned.
 		 */
 		atomic_dec(&chip->active);
-		if (!chip->num_interfaces)
+		if (!chip->num_interfaces) {
 			snd_card_free(chip->card);
+			usb_audio_active = false;
+		}
 	}
 	mutex_unlock(&register_mutex);
 	return err;
@@ -831,6 +841,7 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 		usb_chip[chip->index] = NULL;
 		mutex_unlock(&register_mutex);
 		snd_card_free_when_closed(card);
+		usb_audio_active = false;
 	} else {
 		mutex_unlock(&register_mutex);
 	}

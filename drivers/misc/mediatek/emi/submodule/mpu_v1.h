@@ -9,6 +9,11 @@
 
 #include <linux/types.h>
 
+/* USER_BUILD_KERNEL is only defined when DEBUG_FS is enabled! */
+#ifndef CONFIG_DEBUG_FS
+#define USER_BUILD_KERNEL
+#endif
+
 #define CCCI_API_READY		0
 #define EMI_MPU_TEST		0
 

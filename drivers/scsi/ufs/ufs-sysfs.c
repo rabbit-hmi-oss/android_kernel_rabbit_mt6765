@@ -209,9 +209,10 @@ static ssize_t ufs_sysfs_read_desc_param(struct ufs_hba *hba,
 
 	if (param_size > 8)
 		return -EINVAL;
-
+	pm_runtime_get_sync(hba->dev);
 	ret = ufshcd_read_desc_param(hba, desc_id, desc_index,
 				param_offset, desc_buf, param_size);
+	pm_runtime_put_sync(hba->dev);
 	if (ret)
 		return -EINVAL;
 	switch (param_size) {

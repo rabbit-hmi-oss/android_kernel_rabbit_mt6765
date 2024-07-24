@@ -42,6 +42,7 @@ obj-$(CONFIG_SND_SOC_MT6833) += mt6833/
 obj-$(CONFIG_SND_SOC_MT6885) += mt6885/
 obj-$(CONFIG_SND_SOC_MT6781) += mt6781/
 obj-$(CONFIG_SND_SOC_AW87519) += aw87519/
+obj-$(CONFIG_SND_SOC_AW87XXX) += aw87xxx/
 
 # mtk new arch
 ifeq ($(CONFIG_MTK_SND_SOC_NEW_ARCH),)

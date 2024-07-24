@@ -528,6 +528,12 @@ config UID_SYS_STATS_DEBUG
 	help
 	  Per TASK based io statistics exported to /proc/uid_io
 
+config STEP_MOTOR_MS35774
+	tristate "support step motor ms35774"
+	default n
+	help
+	  Support step motor controller ms35774
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

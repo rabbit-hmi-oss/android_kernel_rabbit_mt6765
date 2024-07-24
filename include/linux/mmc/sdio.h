@@ -17,6 +17,10 @@
 #define SD_IO_RW_DIRECT            52 /* ac   [31:0] See below   R5  */
 #define SD_IO_RW_EXTENDED          53 /* adtc [31:0] See below   R5  */
 
+#define SDIO_CCCR_INTERRUPT_EXT 0x16
+#define SDIO_INTERRUPT_EXT_SAI  (1 << 0)
+#define SDIO_INTERRUPT_EXT_EAI  (1 << 1)
+
 /*
  * SD_IO_RW_DIRECT argument format:
  *

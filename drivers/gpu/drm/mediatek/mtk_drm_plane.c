@@ -34,7 +34,7 @@ static const u32 formats[] = {
 
 unsigned int to_crtc_plane_index(unsigned int plane_index)
 {
-	if ((plane_index >= 0) && (plane_index < OVL_LAYER_NR))
+	if (plane_index < OVL_LAYER_NR)
 		return plane_index;
 	else if (plane_index < (OVL_LAYER_NR + EXTERNAL_INPUT_LAYER_NR))
 		return plane_index - OVL_LAYER_NR;
@@ -368,7 +368,6 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	int src_w, src_h, dst_x, dst_y, dst_w, dst_h, i;
 	struct mtk_drm_crtc *mtk_crtc;
 	unsigned int plane_index = to_crtc_plane_index(plane->index);
-	static int cnt;
 	bool skip_update = 0;
 	int crtc_index = 0;
 
@@ -454,12 +453,8 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	if (state->pending.enable)
 		atomic_set(&mtk_crtc->already_config, 1);
 
-	if (cnt <= 5) {
-		cnt++;
-		if (state->pending.format == DRM_FORMAT_RGB332 &&
-			drm_crtc_index(crtc) == 0)
-			skip_update = 1;
-	}
+	if (state->pending.format == DRM_FORMAT_RGB332)
+		skip_update = 1;
 
 	/* workaround for skip plane update when hwc set crtc */
 	if (skip_update == 0)
@@ -479,8 +474,10 @@ static void mtk_plane_atomic_disable(struct drm_plane *plane,
 #ifdef MTK_DRM_ADVANCE
 	if (!state->crtc) {
 		DDPPR_ERR("%s, empty crtc state\n", __func__);
+		if (old_state && old_state->crtc)
+			mtk_drm_crtc_plane_disable(old_state->crtc, plane, state);
 	} else {
-		mtk_drm_crtc_plane_update(state->crtc, plane, state);
+		mtk_drm_crtc_plane_disable(state->crtc, plane, state);
 	}
 #endif
 }

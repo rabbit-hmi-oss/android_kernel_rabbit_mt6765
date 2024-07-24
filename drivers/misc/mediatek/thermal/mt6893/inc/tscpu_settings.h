@@ -369,6 +369,7 @@ extern u32 thermal_irq_number;
 extern u32 thermal_mcu_irq_number;
 extern void __iomem *thermal_base;
 extern void __iomem *auxadc_ts_base;
+extern void __iomem *rgu_base;
 extern void __iomem *infracfg_ao_base;
 extern void __iomem *th_apmixed_base;
 extern void __iomem *INFRACFG_AO_base;
@@ -686,6 +687,7 @@ extern u64 aee_rr_curr_thermal_ktime(void);
 
 #define THERM_CTRL_BASE_2    thermal_base
 #define AUXADC_BASE_2        auxadc_ts_base
+#define RGU_CTRL_BASE_2      rgu_base
 #define INFRACFG_AO_BASE_2   infracfg_ao_base
 #define APMIXED_BASE_2       th_apmixed_base
 

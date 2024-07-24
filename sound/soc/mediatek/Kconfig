@@ -10,6 +10,12 @@ config SND_SOC_AW87519
 	  This is a config for speaker PA is AW87519.
 	  Generally you select "N", if unsupport it.
 
+config SND_SOC_AW87XXX
+	tristate "Soc Audio for awinic AW87XXX Smart K PA"
+	depends on I2C
+	help
+		This option enables support for AW87XXX Smart K PA
+
 config SND_SOC_MT2701
 	tristate "ASoC support for Mediatek MT2701 chip"
 	depends on ARCH_MEDIATEK

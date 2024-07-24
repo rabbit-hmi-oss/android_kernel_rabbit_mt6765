@@ -100,6 +100,11 @@ static void StopAudioDl1AWBHardware(struct snd_pcm_substream *substream)
 			  Soc_Aud_AFE_IO_Block_MEM_DL2,
 			  Soc_Aud_AFE_IO_Block_MEM_AWB);
 
+	/* for DL3 echoref*/
+	SetIntfConnection(Soc_Aud_InterCon_DisConnect,
+			  Soc_Aud_AFE_IO_Block_MEM_DL3,
+			  Soc_Aud_AFE_IO_Block_MEM_AWB);
+
 	EnableAfe(false);
 }
 
@@ -130,6 +135,11 @@ static void StartAudioDl1AWBHardware(struct snd_pcm_substream *substream)
 	/* for DL2 echoref*/
 	SetIntfConnection(Soc_Aud_InterCon_Connection,
 			  Soc_Aud_AFE_IO_Block_MEM_DL2,
+			  Soc_Aud_AFE_IO_Block_MEM_AWB);
+
+	/* for DL3 echoref*/
+	SetIntfConnection(Soc_Aud_InterCon_Connection,
+			  Soc_Aud_AFE_IO_Block_MEM_DL3,
 			  Soc_Aud_AFE_IO_Block_MEM_AWB);
 
 	EnableAfe(true);

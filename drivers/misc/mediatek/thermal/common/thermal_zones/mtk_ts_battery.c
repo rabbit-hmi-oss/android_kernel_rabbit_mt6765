@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include "tzbatt_initcfg.h"
 #include <linux/power_supply.h>
+#include <linux/reboot.h>
 
 
 /* ************************************ */
@@ -423,7 +424,8 @@ struct thermal_cooling_device *cdev, unsigned long state)
 		/* To trigger data abort to reset the system
 		 * for thermal protection.
 		 */
-		BUG();
+		//BUG();
+		kernel_power_off();
 	}
 	return 0;
 }

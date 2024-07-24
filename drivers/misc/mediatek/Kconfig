@@ -561,3 +561,5 @@ source "drivers/misc/mediatek/ext_gic/Kconfig"
 source "drivers/misc/mediatek/cirq/Kconfig"
 source "drivers/misc/mediatek/timer/Kconfig"
 endmenu # Misc
+
+source "drivers/misc/mediatek/aw862xx_haptic/Kconfig"

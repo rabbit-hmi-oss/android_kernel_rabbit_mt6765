@@ -425,6 +425,9 @@ static void mt6357_clk_buf_get_heater(bool *on)
 
 static void mt6357_clk_buf_set_cap_id_pre(void)
 {
+	pmic_clkbuf_update(PMIC_COFST_FPM, 0, 0);
+	pmic_clkbuf_update(PMIC_CORE_IDAC_FPM, 0, 2);
+
 	pmic_clkbuf_update(PMIC_AAC_FPM_SWEN, 0, 0);
 	mdelay(1);
 	pmic_clkbuf_update(PMIC_AAC_FPM_SWEN, 0, 1);

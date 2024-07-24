@@ -1086,11 +1086,65 @@ static int _mt6370_set_aicr(struct mt6370_pmu_charger_data *chg_data, u32 uA)
 	return ret;
 }
 
-static int _mt6370_set_cv(struct mt6370_pmu_charger_data *chg_data, u32 uV)
+static int _mt6370_get_cv(struct mt6370_pmu_charger_data *chg_data, u32 *cv)
 {
 	int ret = 0;
 	u8 reg_cv = 0;
 
+	ret = mt6370_pmu_reg_read(chg_data->chip, MT6370_PMU_REG_CHGCTRL4);
+	if (ret < 0)
+		return ret;
+
+	reg_cv = (ret & MT6370_MASK_BAT_VOREG) >> MT6370_SHIFT_BAT_VOREG;
+
+	*cv = mt6370_find_closest_real_value(
+		MT6370_BAT_VOREG_MIN,
+		MT6370_BAT_VOREG_MAX,
+		MT6370_BAT_VOREG_STEP,
+		reg_cv
+	);
+
+	return ret;
+}
+
+static int mt6370_get_cv(struct charger_device *chg_dev, u32 *cv)
+{
+	struct mt6370_pmu_charger_data *chg_data = dev_get_drvdata(&chg_dev->dev);
+
+	return _mt6370_get_cv(chg_data, cv);
+}
+
+static int _mt6370_set_cv(struct mt6370_pmu_charger_data *chg_data, u32 uV)
+{
+	int ret = 0, reg_val = 0;
+	u8 reg_cv = 0;
+	u32 ori_cv;
+
+	/* Get the original cv to check if this step of setting cv is necessary */
+	ret = _mt6370_get_cv(chg_data, &ori_cv);
+	if (ret < 0)
+		return ret;
+
+	if (ori_cv == uV)
+		return 0;
+
+	/* Enable hidden mode */
+	ret = mt6370_enable_hidden_mode(chg_data, true);
+	if (ret < 0)
+		return ret;
+
+	/* Store BATOVP Level */
+	reg_val = mt6370_pmu_reg_read(chg_data->chip, MT6370_PMU_REG_CHGHIDDENCTRL22);
+	if (reg_val < 0)
+		goto out;
+
+	/* Disable BATOVP (set 0x45[6:5] = b'11) */
+	ret = mt6370_pmu_reg_write(chg_data->chip, MT6370_PMU_REG_CHGHIDDENCTRL22,
+				   reg_val | MT6370_MASK_BATOVP_LVL);
+	if (ret < 0)
+		goto out;
+
+	/* Set CV */
 	reg_cv = mt6370_find_closest_reg_value(
 		MT6370_BAT_VOREG_MIN,
 		MT6370_BAT_VOREG_MAX,
@@ -1108,6 +1162,27 @@ static int _mt6370_set_cv(struct mt6370_pmu_charger_data *chg_data, u32 uV)
 		MT6370_MASK_BAT_VOREG,
 		reg_cv << MT6370_SHIFT_BAT_VOREG
 	);
+	if (ret < 0)
+		goto out;
+
+	/* Delay 5ms */
+	mdelay(5);
+
+	/* Enable BATOVP and restore BATOVP level */
+	ret = mt6370_pmu_reg_write(chg_data->chip, MT6370_PMU_REG_CHGHIDDENCTRL22, reg_val);
+
+out:
+	/* Disable hidden mode */
+	return mt6370_enable_hidden_mode(chg_data, false);
+}
+
+static int mt6370_set_cv(struct charger_device *chg_dev, u32 uV)
+{
+	int ret = 0;
+	struct mt6370_pmu_charger_data *chg_data =
+		dev_get_drvdata(&chg_dev->dev);
+
+	ret = _mt6370_set_cv(chg_data, uV);
 
 	return ret;
 }
@@ -1558,47 +1633,6 @@ static int mt6370_set_mivr(struct mtk_charger_info *mchr_info, void *data)
 	uV = *((u32 *)data) * 1000;
 
 	ret = _mt6370_set_mivr(chg_data, uV);
-
-	return ret;
-}
-
-static int mt6370_get_cv(struct mtk_charger_info *mchr_info, void *data)
-{
-	int ret = 0;
-	u8 reg_cv = 0;
-	u32 cv = 0;
-	struct mt6370_pmu_charger_data *chg_data =
-		(struct mt6370_pmu_charger_data *)mchr_info;
-
-	ret = mt6370_pmu_reg_read(chg_data->chip, MT6370_PMU_REG_CHGCTRL4);
-	if (ret < 0)
-		return ret;
-
-	reg_cv = (ret & MT6370_MASK_BAT_VOREG) >> MT6370_SHIFT_BAT_VOREG;
-
-	cv = mt6370_find_closest_real_value(
-		MT6370_BAT_VOREG_MIN,
-		MT6370_BAT_VOREG_MAX,
-		MT6370_BAT_VOREG_STEP,
-		reg_cv
-	);
-
-	*((u32 *)data) = cv;
-
-
-	return ret;
-}
-
-static int mt6370_set_cv(struct mtk_charger_info *mchr_info, void *data)
-{
-	int ret = 0;
-	u32 uV = 0;
-	struct mt6370_pmu_charger_data *chg_data =
-		(struct mt6370_pmu_charger_data *)mchr_info;
-
-	uV = *((u32 *)data);
-
-	ret = _mt6370_set_cv(chg_data, uV);
 
 	return ret;
 }

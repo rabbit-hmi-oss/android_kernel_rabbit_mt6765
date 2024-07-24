@@ -1031,11 +1031,11 @@ firmware_class.path=/vendor/firmware";
 	accdet: accdet {
 		compatible = "mediatek,pmic-accdet";
 	};
-
+/*
 	goodix_fp: fingerprint {
 		compatible = "mediatek,goodix-fp";
 	};
-
+*/
 	topmisc@10011000 {
 		compatible = "mediatek,topmisc";
 		reg = <0 0x10011000 0 0x1000>;
@@ -2752,6 +2752,11 @@ firmware_class.path=/vendor/firmware";
 		compatible = "mediatek,irq_nfc-eint";
 	};
 
+	mtee_svp: mtee_svp {
+		compatible = "medaitek,svp";
+	};
+	/* svp end */
+
 	disp_mutex0: disp_mutex0@14001000 {
 		compatible = "mediatek,disp_mutex0";
 		reg = <0 0x14001000 0 0x1000>;
@@ -3361,15 +3366,15 @@ firmware_class.path=/vendor/firmware";
 
 		/* charging current */
 		usb_charger_current = <500000>;
-		ac_charger_current = <2000000>;
-		ac_charger_input_current = <1500000>;
+		ac_charger_current = <1000000>;
+		ac_charger_input_current = <1000000>;
 		non_std_ac_charger_current = <500000>;
-		charging_host_charger_current = <1500000>;
-		ta_ac_charger_current = <3000000>;
-		pd_charger_current = <500000>;
+		charging_host_charger_current = <1000000>;
+		ta_ac_charger_current = <1000000>;
+		pd_charger_current = <1000000>;
 
 		/* battery temperature protection */
-		temp_t4_threshold = <50>;
+		temp_t4_threshold = <55>;
 		temp_t3_threshold = <45>;
 		temp_t1_threshold = <0>;
 	};
@@ -3378,18 +3383,18 @@ firmware_class.path=/vendor/firmware";
 		compatible = "mediatek,charger,pe";
 		gauge = <&mtk_gauge>;
 
-		ta_12v_support;
-		ta_9v_support;
+		/*ta_12v_support;*/
+		/*ta_9v_support;*/
 
 		pe_ichg_level_threshold = <1000000>; /* uA */
 		ta_start_battery_soc = <0>;
 		ta_stop_battery_soc = <85>;
-		min_charger_voltage = <4600000>;
+		min_charger_voltage = <4400000>;
 
-		ta_ac_12v_input_current = <3200000>;
-		ta_ac_9v_input_current = <3200000>;
-		ta_ac_7v_input_current = <3200000>;
-		pe_charger_current = <3000000>;
+		ta_ac_12v_input_current = <1000000>;
+		ta_ac_9v_input_current = <1000000>;
+		ta_ac_7v_input_current = <1000000>;
+		pe_charger_current = <1000000>;
 	};
 
 	pe2: pe2 {
@@ -3400,20 +3405,20 @@ firmware_class.path=/vendor/firmware";
 		pe20_ichg_level_threshold = <1000000>; /* uA */
 		ta_start_battery_soc = <0>;
 		ta_stop_battery_soc = <85>;
-		min_charger_voltage = <4600000>;
+		min_charger_voltage = <4400000>;
 
 		/* cable measurement impedance */
 		cable_imp_threshold = <699>;
 		vbat_cable_imp_threshold = <3900000>; /* uV */
 
 		/* single charger */
-		sc_input_current = <3200000>;
-		sc_charger_current = <3000000>;
+		sc_input_current = <1000000>;
+		sc_charger_current = <1000000>;
 
 		/* dual charger in series */
-		dcs_input_current = <3200000>;
-		dcs_chg1_charger_current = <1500000>;
-		dcs_chg2_charger_current = <1500000>;
+		dcs_input_current = <1000000>;
+		dcs_chg1_charger_current = <500000>;
+		dcs_chg2_charger_current = <500000>;
 
 		dual_polling_ieoc = <450000>;
 		slave_mivr_diff = <100000>;
@@ -3423,22 +3428,22 @@ firmware_class.path=/vendor/firmware";
 		compatible = "mediatek,charger,pd";
 		gauge = <&mtk_gauge>;
 
-		min_charger_voltage = <4600000>;
+		min_charger_voltage = <4400000>;
 		pd_vbus_low_bound = <5000000>;
-		pd_vbus_upper_bound = <5000000>;
+		pd_vbus_upper_bound = <60000000>;
 		vsys_watt = <5000000>;
 		ibus_err = <14>;
 
 		pd_stop_battery_soc = <80>;
 
 		/* single charger */
-		sc_input_current = <3200000>;
-		sc_charger_current = <3000000>;
+		sc_input_current = <1000000>;
+		sc_charger_current = <1000000>;
 
 		/* dual charger in series */
-		dcs_input_current = <3200000>;
-		dcs_chg1_charger_current = <1500000>;
-		dcs_chg2_charger_current = <1500000>;
+		dcs_input_current = <1000000>;
+		dcs_chg1_charger_current = <500000>;
+		dcs_chg2_charger_current = <500000>;
 
 		/* dual charger */
 		dual_polling_ieoc = <450000>;
@@ -3449,7 +3454,7 @@ firmware_class.path=/vendor/firmware";
 		compatible = "mediatek,charger,pe4";
 		gauge = <&mtk_gauge>;
 
-		min_charger_voltage = <4600000>;
+		min_charger_voltage = <4400000>;
 		pe40_stop_battery_soc = <80>;
 
 		high_temp_to_leave_pe40 = <46>;
@@ -3464,13 +3469,13 @@ firmware_class.path=/vendor/firmware";
 		pe40_r_cable_3a_lower = <240>;
 
 		/* single charger */
-		sc_input_current = <3200000>;
-		sc_charger_current = <3000000>;
+		sc_input_current = <1000000>;
+		sc_charger_current = <1000000>;
 
 		/* dual charger in series*/
-		dcs_input_current = <3200000>;
-		dcs_chg1_charger_current = <1500000>;
-		dcs_chg2_charger_current = <1500000>;
+		dcs_input_current = <1000000>;
+		dcs_chg1_charger_current = <500000>;
+		dcs_chg2_charger_current = <500000>;
 
 		dual_polling_ieoc = <450000>;
 		slave_mivr_diff = <100000>;
@@ -3487,48 +3492,54 @@ firmware_class.path=/vendor/firmware";
 		charger_configuration= <0>;
 
 		/* common */
-		battery_cv = <4350000>;
-		max_charger_voltage = <6500000>;
-		min_charger_voltage = <4600000>;
+		battery_cv = <4400000>;
+		max_charger_voltage = <6000000>;
+		min_charger_voltage = <4200000>;
 
 		/* sw jeita */
-		/* enable_sw_jeita; */
-		jeita_temp_above_t4_cv = <4240000>;
-		jeita_temp_t3_to_t4_cv = <4240000>;
-		jeita_temp_t2_to_t3_cv = <4340000>;
-		jeita_temp_t1_to_t2_cv = <4240000>;
-		jeita_temp_t0_to_t1_cv = <4040000>;
-		jeita_temp_below_t0_cv = <4040000>;
-		temp_t4_thres = <50>;
-		temp_t4_thres_minus_x_degree = <47>;
+		enable_sw_jeita;
+		jeita_temp_above_t4_cc = <0>;
+		jeita_temp_t3_to_t4_cc = <500000>;
+		jeita_temp_t2_to_t3_cc = <1000000>;
+		jeita_temp_t1_to_t2_cc = <1000000>;
+		jeita_temp_t0_to_t1_cc = <1000000>;
+		jeita_temp_below_t0_cc = <0>;
+		jeita_temp_above_t4_cv = <4200000>;
+		jeita_temp_t3_to_t4_cv = <4200000>;
+		jeita_temp_t2_to_t3_cv = <4400000>;
+		jeita_temp_t1_to_t2_cv = <4400000>;
+		jeita_temp_t0_to_t1_cv = <4400000>;
+		jeita_temp_below_t0_cv = <4400000>;
+		temp_t4_thres = <55>;
+		temp_t4_thres_minus_x_degree = <52>;
 		temp_t3_thres = <45>;
-		temp_t3_thres_minus_x_degree = <39>;
-		temp_t2_thres = <10>;
-		temp_t2_thres_plus_x_degree = <16>;
-		temp_t1_thres = <0>;
-		temp_t1_thres_plus_x_degree = <6>;
+		temp_t3_thres_minus_x_degree = <43>;
+		temp_t2_thres = <15>;
+		temp_t2_thres_plus_x_degree = <18>;
+		temp_t1_thres = <5>;
+		temp_t1_thres_plus_x_degree = <8>;
 		temp_t0_thres = <0>;
-		temp_t0_thres_plus_x_degree = <0>;
-		temp_neg_10_thres = <0>;
+		temp_t0_thres_plus_x_degree = <3>;
+		temp_neg_10_thres = <(-10)>;
 
 		/* battery temperature protection */
 		enable_min_charge_temp;
 		min_charge_temp = <0>;
-		min_charge_temp_plus_x_degree = <6>;
-		max_charge_temp = <50>;
-		max_charge_temp_minus_x_degree = <47>;
+		min_charge_temp_plus_x_degree = <3>;
+		max_charge_temp = <55>;
+		max_charge_temp_minus_x_degree = <52>;
 
 		/* charging current */
 		usb_charger_current = <500000>;
-		ac_charger_current = <2000000>;
-		ac_charger_input_current = <1500000>;
-		charging_host_charger_current = <1500000>;
+		ac_charger_current = <1000000>;
+		ac_charger_input_current = <1000000>;
+		charging_host_charger_current = <1000000>;
 
 		/* dynamic mivr */
 		enable_dynamic_mivr;
 		min_charger_voltage_1 = <4400000>;
 		min_charger_voltage_2 = <4200000>;
-		max_dmivr_charger_current = <1800000>;
+		max_dmivr_charger_current = <1000000>;
 	};
 
 	pd_adapter: pd_adapter {
@@ -3541,7 +3552,7 @@ firmware_class.path=/vendor/firmware";
 		charger = <&mt6370_chg>;
 		vbus-supply = <&otg_vbus>;
 		vbus-voltage = <5000000>;
-		vbus-current = <1800000>;
+		vbus-current = <500000>;
 		dev-conn = <&usb>;
 		mediatek,bypss-typec-sink = <1>;
 	};
@@ -3560,13 +3571,13 @@ firmware_class.path=/vendor/firmware";
 
 	tcpc_pd: mt6370_pd_eint {
 	};
-
+/*
 	irtx_pwm:irtx_pwm {
 		compatible = "mediatek,irtx-pwm";
 		pwm_ch = <0>;
 		pwm_data_invert = <0>;
 	};
-
+*/
 	odm: odm{
 		compatible = "simple-bus";
 		/* reserved for overlay by odm */
@@ -3822,6 +3833,10 @@ firmware_class.path=/vendor/firmware";
 				<&dvfsrc_freq_opp1>;
 	};
 
+	step_motor_ms35774: step_motor_ms35774 {
+		compatible = "relmon,ms35774";
+		status = "disabled";
+	};
 };
 
 #include "mediatek/cust_mt6765_msdc.dtsi"

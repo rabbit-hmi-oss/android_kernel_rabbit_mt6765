@@ -59,6 +59,8 @@
 
 #include "mtk_charger.h"
 
+static bool is_module_init_done;
+
 struct tag_bootmode {
 	u32 size;
 	u32 tag;
@@ -208,6 +210,54 @@ static void mtk_charger_parse_dt(struct mtk_charger *info,
 
 	/* sw jeita */
 	info->enable_sw_jeita = of_property_read_bool(np, "enable_sw_jeita");
+	if (of_property_read_u32(np, "jeita_temp_above_t4_cc", &val) >= 0)
+		info->data.jeita_temp_above_t4_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_ABOVE_T4_CC:%d\n",
+			JEITA_TEMP_ABOVE_T4_CC);
+		info->data.jeita_temp_above_t4_cc = JEITA_TEMP_ABOVE_T4_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t3_to_t4_cc", &val) >= 0)
+		info->data.jeita_temp_t3_to_t4_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T3_TO_T4_CC:%d\n",
+			JEITA_TEMP_T3_TO_T4_CC);
+		info->data.jeita_temp_t3_to_t4_cc = JEITA_TEMP_T3_TO_T4_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t2_to_t3_cc", &val) >= 0)
+		info->data.jeita_temp_t2_to_t3_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T2_TO_T3_CC:%d\n",
+			JEITA_TEMP_T2_TO_T3_CC);
+		info->data.jeita_temp_t2_to_t3_cc = JEITA_TEMP_T2_TO_T3_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t1_to_t2_cc", &val) >= 0)
+		info->data.jeita_temp_t1_to_t2_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T1_TO_T2_CC:%d\n",
+			JEITA_TEMP_T1_TO_T2_CC);
+		info->data.jeita_temp_t1_to_t2_cc = JEITA_TEMP_T1_TO_T2_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_t0_to_t1_cc", &val) >= 0)
+		info->data.jeita_temp_t0_to_t1_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_T0_TO_T1_CC:%d\n",
+			JEITA_TEMP_T0_TO_T1_CC);
+		info->data.jeita_temp_t0_to_t1_cc = JEITA_TEMP_T0_TO_T1_CC;
+	}
+
+	if (of_property_read_u32(np, "jeita_temp_below_t0_cc", &val) >= 0)
+		info->data.jeita_temp_below_t0_cc = val;
+	else {
+		chr_err("use default JEITA_TEMP_BELOW_T0_CC:%d\n",
+			JEITA_TEMP_BELOW_T0_CC);
+		info->data.jeita_temp_below_t0_cc = JEITA_TEMP_BELOW_T0_CC;
+	}
+
 	if (of_property_read_u32(np, "jeita_temp_above_t4_cv", &val) >= 0)
 		info->data.jeita_temp_above_t4_cv = val;
 	else {
@@ -546,10 +596,15 @@ static void check_dynamic_mivr(struct mtk_charger *info)
 void do_sw_jeita_state_machine(struct mtk_charger *info)
 {
 	struct sw_jeita_data *sw_jeita;
+	int vbat = get_battery_voltage(info);
+	int ibat = get_battery_current(info);
 
 	sw_jeita = &info->sw_jeita;
 	sw_jeita->pre_sm = sw_jeita->sm;
 	sw_jeita->charging = true;
+	sw_jeita->pre_cv = sw_jeita->cv;
+	if (sw_jeita->pre_cv == 0)
+		sw_jeita->pre_cv = info->data.jeita_temp_t2_to_t3_cv;
 
 	/* JEITA battery temp Standard */
 	if (info->battery_temp >= info->data.temp_t4_thres) {
@@ -638,27 +693,58 @@ void do_sw_jeita_state_machine(struct mtk_charger *info)
 	/* set CV after temperature changed */
 	/* In normal range, we adjust CV dynamically */
 	if (sw_jeita->sm != TEMP_T2_TO_T3) {
-		if (sw_jeita->sm == TEMP_ABOVE_T4)
+		if (sw_jeita->sm == TEMP_ABOVE_T4) {
 			sw_jeita->cv = info->data.jeita_temp_above_t4_cv;
-		else if (sw_jeita->sm == TEMP_T3_TO_T4)
-			sw_jeita->cv = info->data.jeita_temp_t3_to_t4_cv;
-		else if (sw_jeita->sm == TEMP_T2_TO_T3)
+			sw_jeita->cc = info->data.jeita_temp_above_t4_cc;
+		} else if (sw_jeita->sm == TEMP_T3_TO_T4) {
+			if (sw_jeita->pre_cv > info->data.jeita_temp_t3_to_t4_cv) {
+				sw_jeita->pre_cv = info->data.jeita_temp_t3_to_t4_cv;
+			}
+			if (ibat > 250) {
+				sw_jeita->cv = sw_jeita->pre_cv - 10*1000;
+			} else if (ibat < 150) {
+				sw_jeita->cv = sw_jeita->pre_cv + 10*1000;
+			}
+			if (sw_jeita->cv > info->data.jeita_temp_t3_to_t4_cv) {
+				sw_jeita->cv = info->data.jeita_temp_t3_to_t4_cv;
+			}
+			if (sw_jeita->cv != info->data.jeita_temp_t3_to_t4_cv) {
+				charger_dev_enable_termination(info->chg1_dev, false);
+			} else {
+				charger_dev_enable_termination(info->chg1_dev, true);
+				charger_dev_set_eoc_current(info->chg1_dev, 100000);
+			}
+			chr_err("[SW_JEITA] dynamic cv: %d->%d, vbat: %d, ibat: %d\n",
+					sw_jeita->pre_cv, sw_jeita->cv, vbat, ibat);
+			sw_jeita->cc = info->data.jeita_temp_t3_to_t4_cc;
+		} else if (sw_jeita->sm == TEMP_T2_TO_T3) {
 			sw_jeita->cv = 0;
-		else if (sw_jeita->sm == TEMP_T1_TO_T2)
+			sw_jeita->cc = info->data.jeita_temp_t2_to_t3_cc;
+		} else if (sw_jeita->sm == TEMP_T1_TO_T2) {
 			sw_jeita->cv = info->data.jeita_temp_t1_to_t2_cv;
-		else if (sw_jeita->sm == TEMP_T0_TO_T1)
+			sw_jeita->cc = info->data.jeita_temp_t1_to_t2_cc;
+		} else if (sw_jeita->sm == TEMP_T0_TO_T1) {
 			sw_jeita->cv = info->data.jeita_temp_t0_to_t1_cv;
-		else if (sw_jeita->sm == TEMP_BELOW_T0)
+			sw_jeita->cc = info->data.jeita_temp_t0_to_t1_cc;
+		} else if (sw_jeita->sm == TEMP_BELOW_T0) {
 			sw_jeita->cv = info->data.jeita_temp_below_t0_cv;
-		else
+			sw_jeita->cc = info->data.jeita_temp_below_t0_cc;
+		} else {
 			sw_jeita->cv = info->data.battery_cv;
+			sw_jeita->cc = info->data.jeita_temp_t2_to_t3_cc;
+		}
 	} else {
 		sw_jeita->cv = 0;
+		sw_jeita->cc = info->data.jeita_temp_t2_to_t3_cc;
+	}
+	if (sw_jeita->sm != TEMP_T3_TO_T4) {
+		charger_dev_enable_termination(info->chg1_dev, true);
+		charger_dev_set_eoc_current(info->chg1_dev, 100000);
 	}
 
-	chr_err("[SW_JEITA]preState:%d newState:%d tmp:%d cv:%d\n",
+	chr_err("[SW_JEITA]preState:%d newState:%d tmp:%d cv:%d cc:%d\n",
 		sw_jeita->pre_sm, sw_jeita->sm, info->battery_temp,
-		sw_jeita->cv);
+		sw_jeita->cv, sw_jeita->cc);
 }
 
 static int mtk_chgstat_notify(struct mtk_charger *info)
@@ -878,6 +964,24 @@ static ssize_t BatteryNotify_store(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(BatteryNotify);
+
+static ssize_t vbus_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct mtk_charger *pinfo = dev->driver_data;
+
+	return sprintf(buf, "%d\n", get_vbus(pinfo) * 1000);
+}
+static DEVICE_ATTR_RO(vbus);
+
+static ssize_t ibus_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct mtk_charger *pinfo = dev->driver_data;
+
+	return sprintf(buf, "%d\n", get_ibus(pinfo) * 1000);
+}
+static DEVICE_ATTR_RO(ibus);
 
 /* procfs */
 static int mtk_chg_current_cmd_show(struct seq_file *m, void *data)
@@ -1149,6 +1253,11 @@ static void mtk_battery_notify_VBatTemp_check(struct mtk_charger *info)
 			chr_err("bat_temp(%d) out of range(too low)\n",
 				info->battery_temp);
 			mtk_chgstat_notify(info);
+			if (info->battery_temp <= -20) {
+				chr_err("bat_temp(%d) too low! shutdown!!!!!!!!!!!!!\n",
+						info->battery_temp);
+				kernel_power_off();
+			}
 		} else {
 			info->notify_code &= ~CHG_BAT_LT_STATUS;
 		}
@@ -1433,6 +1542,7 @@ static int mtk_charger_plug_out(struct mtk_charger *info)
 	chr_err("%s\n", __func__);
 	info->chr_type = POWER_SUPPLY_TYPE_UNKNOWN;
 	info->charger_thread_polling = false;
+	info->pd_reset = false;
 
 	pdata1->disable_charging_count = 0;
 	pdata1->input_current_limit_by_aicl = -1;
@@ -1556,7 +1666,6 @@ static int charger_routine_thread(void *arg)
 {
 	struct mtk_charger *info = arg;
 	unsigned long flags;
-	static bool is_module_init_done;
 	bool is_charger_on;
 
 	while (1) {
@@ -1727,6 +1836,14 @@ static int mtk_charger_setup_files(struct platform_device *pdev)
 
 	/* Battery warning */
 	ret = device_create_file(&(pdev->dev), &dev_attr_BatteryNotify);
+	if (ret)
+		goto _out;
+
+	ret = device_create_file(&(pdev->dev), &dev_attr_vbus);
+	if (ret)
+		goto _out;
+
+	ret = device_create_file(&(pdev->dev), &dev_attr_ibus);
 	if (ret)
 		goto _out;
 
@@ -1955,7 +2072,8 @@ static void mtk_charger_external_power_changed(struct power_supply *psy)
 		psy->desc->name, prop.intval, prop2.intval,
 		get_vbus(info));
 
-	mtk_is_charger_on(info);
+	if(is_module_init_done)
+		mtk_is_charger_on(info);
 	_wake_up_charger(info);
 }
 

@@ -12,12 +12,24 @@ menuconfig INPUT_TOUCHSCREEN
 source "drivers/input/touchscreen/mediatek/Kconfig"
 
 source "drivers/input/touchscreen/NT36672C/Kconfig"
+source "drivers/input/touchscreen/NT36532/Kconfig"
 
 if INPUT_TOUCHSCREEN
 
 config TOUCHSCREEN_PROPERTIES
 	def_tristate INPUT
 	depends on INPUT
+
+config OCH1970
+	tristate "OCH1970"
+	depends on I2C
+	help
+	  Say Y here if you have a OCH1970 
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called OCH1970.
 
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
@@ -1327,6 +1339,17 @@ config TOUCHSCREEN_MTK_GT1151
 
 source "drivers/input/touchscreen/GT1151/Kconfig"
 
+config TOUCHSCREEN_MTK_NT36xxx_no_flash_spi
+        bool "NT36xxx for Mediatek package"
+        default n
+        help
+          Say Y here if you have NT36xxx touch panel.
+
+          If unsure, say N.
+
+          To compile this dirver as a module, choose M here: the
+          module will be called.
+
 config TOUCHSCREEN_MTK_FOCALTECH_HD
 	bool "Focaltech Touchscreen"
 	depends on I2C
@@ -1336,6 +1359,18 @@ config TOUCHSCREEN_MTK_FOCALTECH_HD
 
 	  To compile this dirver as a module, choose M here: the
 	  module will be called.
+
+config TOUCHSCREEN_MTK_ILITEK_V3
+	bool "ILITEK_V3"
+	depends on SPI
+	help 
+	  Say Y here if you have ILITEK_V3 touch panel.
+	  If unsure, say N.
+
+	  To compile this dirver as a module, choose M here: the
+	  module will be called.
+
+
 
 config TOUCHSCREEN_MTK_FOCALTECH_FHD
 	bool "Focaltech FHD Touchscreen"
@@ -1360,6 +1395,15 @@ config TOUCHSCREEN_MTK_SYNAPTICS_I2C_RMI4
           module will be called synaptics_i2c_rmi4.
 
 source "drivers/input/touchscreen/synaptics_i2c_rmi4/Kconfig"
+
+config CONFIG_TOUCHSCREEN_HYNITRON_TS
+    bool "hynitorn Ts for TOUCHSCREEN"
+    depends on I2C
+    default y
+    help
+      Say Y here if you have hynitorn touch panel.
+      If unsure, say N.
+
 
 config TOUCHSCREEN_MTK_TOUCH
 	string "Touch IC name for Mediatek package"

@@ -30,7 +30,7 @@
 #ifdef CONFIG_MTK_AEE_FEATURE
 #include <mt-plat/aee.h>
 #endif
-#include <mt-plat/upmu_common.h>
+
 #define CREATE_TRACE_POINTS
 #include "trace/events/ufs_mtk.h"
 
@@ -71,16 +71,6 @@ static void ufs_mtk_auto_hibern8(struct ufs_hba *hba, bool enable);
 
 #define ufs_mtk_device_reset_ctrl(high, res) \
 	ufs_mtk_smc(UFS_MTK_SIP_DEVICE_RESET, high, res)
-
-#if defined(PMIC_RG_LDO_VUFS_LP_ADDR)
-#define ufs_mtk_vufs_set_lpm(on) \
-	pmic_config_interface(PMIC_RG_LDO_VUFS_LP_ADDR, \
-					(on), \
-					PMIC_RG_LDO_VUFS_LP_MASK, \
-					PMIC_RG_LDO_VUFS_LP_SHIFT)
-#else
-#define ufs_mtk_vufs_set_lpm(on)
-#endif
 
 int ufsdbg_perf_dump = 0;
 static struct ufs_hba *ufs_mtk_hba;
@@ -258,7 +248,7 @@ static int ufs_mtk_rpmb_cmd_seq(struct device *dev,
 	 * Use rpmb lock to prevent other rpmb read/write threads cut in line.
 	 * Use mutex not spin lock because in/out function might sleep.
 	 */
-	mutex_lock(&host->rpmb_lock);
+	down(&host->rpmb_sem);
 	for (ret = 0, i = 0; i < ncmds && !ret; i++) {
 		cmd = &cmds[i];
 		if (cmd->flags & RPMB_F_WRITE)
@@ -268,7 +258,7 @@ static int ufs_mtk_rpmb_cmd_seq(struct device *dev,
 			ret = ufs_mtk_rpmb_security_in(sdev, cmd->frames,
 						      cmd->nframes);
 	}
-	mutex_unlock(&host->rpmb_lock);
+	up(&host->rpmb_sem);
 
 	scsi_device_put(sdev);
 	return ret;
@@ -322,6 +312,11 @@ void ufs_mtk_rpmb_add(struct ufs_hba *hba, struct scsi_device *sdev_rpmb)
 	 *            rpmb ioctl solution.
 	 */
 	host->rawdev_ufs_rpmb = rdev;
+
+	/*
+	 * Initialize rpmb semaphore.
+	 */
+	sema_init(&host->rpmb_sem, 1);
 
 	return;
 
@@ -444,7 +439,7 @@ int ufs_mtk_ioctl_rpmb(struct ufs_hba *hba, const void __user *buf_user)
 	 * Use rpmb lock to prevent other rpmb read/write threads cut in line.
 	 * Use mutex not spin lock because in/out function might sleep.
 	 */
-	mutex_lock(&host->rpmb_lock);
+	down(&host->rpmb_sem);
 	for (i = 0; i < 3; i++) {
 		if (cmd[i].nframes == 0)
 			break;
@@ -493,7 +488,7 @@ int ufs_mtk_ioctl_rpmb(struct ufs_hba *hba, const void __user *buf_user)
 
 		frames += cmd[i].nframes;
 	}
-	mutex_unlock(&host->rpmb_lock);
+	up(&host->rpmb_sem);
 
 	kfree(frame_buf);
 
@@ -523,7 +518,6 @@ static void ufs_mtk_parse_dt(struct ufs_mtk_host *host)
 	struct ufs_hba *hba = host->hba;
 	struct device *dev = hba->dev;
 	int ret;
-	u32 tmp;
 
 	/*
 	 * Parse reference clock control setting
@@ -548,18 +542,13 @@ static void ufs_mtk_parse_dt(struct ufs_mtk_host *host)
 			 __func__);
 	}
 
-	tmp = 0;
-	ret = of_property_read_u32(dev->of_node, "mediatek,vreg_vufs_lpm",
-								&tmp);
-	if (ret)
-		host->vreg_lpm_supported = FALSE;
-	else
-		host->vreg_lpm_supported = tmp ? TRUE : FALSE;
-
 	if (of_property_read_bool(dev->of_node, "mediatek,ufs-qos")) {
 		host->qos_allowed = true;
 		host->qos_enabled = true;
 	}
+
+	if (of_property_read_bool(dev->of_node, "mediatek,ufs-bkops"))
+		hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
 }
 
 void ufs_mtk_cfg_unipro_cg(struct ufs_hba *hba, bool enable)
@@ -1277,6 +1266,12 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 		ufs_mtk_perf_setup(host, true);
 		if (host && host->qos_enabled)
 			ufs_mtk_biolog_clk_gating(false);
+		if(ufs_mtk_has_ufshci_perf_heuristic(hba)) {
+			if (!hba->outstanding_reqs) {
+				hba->ufs_mtk_qcmd_w_cmd_cnt = 0;
+				hba->ufs_mtk_qcmd_r_cmd_cnt = 0;
+			}
+		}
 	}
 
 out:
@@ -1699,21 +1694,15 @@ static int ufs_mtk_link_set_lpm(struct ufs_hba *hba)
 
 static void ufs_mtk_vreg_set_lpm(struct ufs_hba *hba, bool lpm)
 {
-	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	if (!hba->vreg_info.vccq2)
+		return;
 
-	if (lpm & !hba->vreg_info.vcc->enabled) {
-		if (hba->vreg_info.vccq2)
-			regulator_set_mode(hba->vreg_info.vccq2->reg,
-								REGULATOR_MODE_IDLE);
-		else if (host->vreg_lpm_supported)
-			ufs_mtk_vufs_set_lpm(1);
-	} else if (!lpm) {
-		if (hba->vreg_info.vccq2)
-			regulator_set_mode(hba->vreg_info.vccq2->reg,
-								REGULATOR_MODE_NORMAL);
-		else if (host->vreg_lpm_supported)
-			ufs_mtk_vufs_set_lpm(0);
-	}
+	if (lpm & !hba->vreg_info.vcc->enabled)
+		regulator_set_mode(hba->vreg_info.vccq2->reg,
+					REGULATOR_MODE_IDLE);
+	else if (!lpm)
+		regulator_set_mode(hba->vreg_info.vccq2->reg,
+					REGULATOR_MODE_NORMAL);
 }
 
 static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
@@ -1800,8 +1789,10 @@ static int ufs_mtk_apply_dev_quirks(struct ufs_hba *hba)
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	u16 mid = dev_info->wmanufacturerid;
 
-	if (mid == UFS_VENDOR_SAMSUNG)
+	if (mid == UFS_VENDOR_SAMSUNG) {
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TACTIVATE), 6);
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HIBERN8TIME), 10);
+	}
 
 	/*
 	 * Decide waiting time before gating reference clock and
@@ -2078,9 +2069,38 @@ static int ufs_mtk_remove(struct platform_device *pdev)
 	return 0;
 }
 
+int ufs_mtk_pltfrm_suspend(struct device *dev)
+{
+	int ret;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	if (down_trylock(&host->rpmb_sem))
+		return -EBUSY;
+
+	ret = ufshcd_pltfrm_suspend(dev);
+	if (ret)
+		up(&host->rpmb_sem);
+
+	return ret;
+}
+
+int ufs_mtk_pltfrm_resume(struct device *dev)
+{
+	int ret;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	ret = ufshcd_pltfrm_resume(dev);
+	if (!ret)
+		up(&host->rpmb_sem);
+
+	return ret;
+}
+
 static const struct dev_pm_ops ufs_mtk_pm_ops = {
-	.suspend         = ufshcd_pltfrm_suspend,
-	.resume          = ufshcd_pltfrm_resume,
+	.suspend         = ufs_mtk_pltfrm_suspend,
+	.resume          = ufs_mtk_pltfrm_resume,
 	.runtime_suspend = ufshcd_pltfrm_runtime_suspend,
 	.runtime_resume  = ufshcd_pltfrm_runtime_resume,
 	.runtime_idle    = ufshcd_pltfrm_runtime_idle,

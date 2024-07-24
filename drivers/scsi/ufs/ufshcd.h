@@ -859,6 +859,8 @@ struct ufs_hba {
 	struct request_queue	*bsg_queue;
 
 	bool invalid_resp_upiu;
+	bool rpm_dev_flush_capable;
+	struct delayed_work rpm_dev_flush_recheck_work;
 
 #if defined(CONFIG_SCSI_UFS_FEATURE)
 	struct ufsf_feature ufsf;

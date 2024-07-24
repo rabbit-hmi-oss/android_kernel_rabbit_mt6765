@@ -747,6 +747,226 @@ cmd_err:
 	return ioc_err ? ioc_err : err;
 }
 
+#define MMC_BLK_NO_WP           0
+#define MMC_BLK_PARTIALLY_WP    1
+#define MMC_BLK_FULLY_WP        2
+static int mmc_blk_check_disk_range_wp(struct gendisk *disk,
+	sector_t part_start, sector_t part_nr_sects)
+{
+	struct mmc_command cmd = {0};
+	struct mmc_request mrq = {NULL};
+	struct mmc_data data = {0};
+	struct mmc_blk_data *md;
+	struct mmc_card *card;
+	struct scatterlist sg;
+	unsigned char *buf = NULL, status;
+	sector_t start, end, quot;
+	sector_t wp_grp_rem, wp_grp_total, wp_grp_found, status_query_cnt;
+	unsigned int remain;
+	int err = 0, i, j, k;
+	u8 boot_wp_status = 0;
+#if defined(CONFIG_MTK_EMMC_CQ_SUPPORT) || defined(CONFIG_MTK_EMMC_HW_CQ)
+	bool cmdq_en = false;
+#endif
+
+	md = mmc_blk_get(disk);
+	if (!md)
+		return -EINVAL;
+
+	if (!md->queue.card) {
+		err = -EINVAL;
+		goto out2;
+	}
+
+	card = md->queue.card;
+	/* NMCARD use a eMMC4.5-like protocol but it is extern storage,
+	 * no need check WP status.
+	 */
+	if (!mmc_card_mmc(card) ||
+		(card->host->caps2 & MMC_CAP2_NMCARD) ||
+		md->part_type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
+		err = MMC_BLK_NO_WP;
+		goto out2;
+	}
+
+	/* BOOT_WP_STATUS in EXT_CSD:
+	 * |-----bit[7:4]-----|-------bit[3:2]--------|-------bit[1:0]--------|
+	 * |-----reserved-----|----boot1 wp status----|----boot0 wp status----|
+	 * boot0 area wp type:depending on bit[1:0]
+	 * 0->not wp; 1->power on wp; 2->permanent wp; 3:reserved value
+	 * boot1 area wp type:depending on bit[3:2]
+	 * 0->not wp; 1->power on wp; 2->permanent wp; 3:reserved value
+	 */
+	if (md->part_type == EXT_CSD_PART_CONFIG_ACC_BOOT0) {
+		boot_wp_status = card->ext_csd.boot_wp_status & 0x3;
+		if (boot_wp_status == 0x1 || boot_wp_status == 0x2) {
+			pr_notice("[%s]%s is fully write protected\n", __func__,
+				disk->disk_name);
+			err = MMC_BLK_FULLY_WP;
+		} else
+			err = MMC_BLK_NO_WP;
+		goto out2;
+	}
+
+	/* EXT_CSD_PART_CONFIG_ACC_BOOT0 + 1 <=> BOOT1 */
+	if (md->part_type == (EXT_CSD_PART_CONFIG_ACC_BOOT0 + 1)) {
+		boot_wp_status = (card->ext_csd.boot_wp_status >> 2) & 0x3;
+		if (boot_wp_status == 0x1 || boot_wp_status == 0x2) {
+			pr_notice("[%s]%s is fully write protected\n", __func__,
+				disk->disk_name);
+			err = MMC_BLK_FULLY_WP;
+		} else
+			err = MMC_BLK_NO_WP;
+		goto out2;
+	}
+	if (!card->wp_grp_size) {
+		pr_notice("[%s]Write protect group size cannot be 0!\n", __func__);
+		err = -EINVAL;
+		goto out2;
+	}
+
+	start = part_start;
+	quot = start;
+	quot = div_u64_rem(quot, card->wp_grp_size, &remain);
+	if (remain) {
+		pr_notice("[%s]Start 0x%llx of disk %s not write group aligned\n", __func__,
+			(unsigned long long)part_start, disk->disk_name);
+		start -= remain;
+	}
+
+	end = part_start + part_nr_sects;
+	quot = end;
+	quot = div_u64_rem(quot, card->wp_grp_size, &remain);
+	if (remain) {
+		pr_notice("[%s]End 0x%llx of disk %s not write group aligned\n", __func__,
+			(unsigned long long)part_start, disk->disk_name);
+		end += card->wp_grp_size - remain;
+	}
+	wp_grp_total = end - start;
+	wp_grp_rem = div_u64(wp_grp_total, card->wp_grp_size);
+	wp_grp_found = 0;
+
+	cmd.opcode = MMC_SEND_WRITE_PROT_TYPE;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+
+	buf = kmalloc(8, GFP_KERNEL);
+	if (!buf) {
+		err = -ENOMEM;
+		goto out2;
+	}
+	sg_init_one(&sg, buf, 8);
+
+	data.blksz = 8;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+	mmc_set_data_timeout(&data, card);
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	mmc_get_card(card, NULL);
+
+	err = mmc_blk_part_switch(card, md->part_type);
+	if (err) {
+		err = -EIO;
+		goto out;
+	}
+
+#if defined(CONFIG_MTK_EMMC_CQ_SUPPORT) || defined(CONFIG_MTK_EMMC_HW_CQ)
+	cmdq_en = !!mmc_card_cmdq(card);
+	if (cmdq_en) {
+		err = mmc_cmdq_disable(card);
+		if (err) {
+			pr_notice("%s, %s: disable cmdq error %d\n",
+				__func__, mmc_hostname(card->host), err);
+			err = -EIO;
+			goto out;
+		}
+	}
+#endif
+
+	status_query_cnt = (wp_grp_total + 31) / 32;
+	for (i = 0; i < status_query_cnt; i++) {
+		cmd.arg = start + i * card->wp_grp_size * 32;
+		mmc_wait_for_req(card->host, &mrq);
+		if (cmd.error) {
+			pr_notice("%s: cmd error %d\n", __func__, cmd.error);
+			err = -EIO;
+			goto out;
+		}
+
+		/* wp status is returned in 8 bytes.
+		 * The 8 bytes is regarded as 64-bits bit-stream:
+		 * +--------+--------+-------------------------+--------+
+		 * | byte 7 | byte 6 |           ...           | byte 0 |
+		 * |  bits  |  bits  |                         |  bits  |
+		 * |76543210|76543210|                         |76543210|
+		 * +--------+--------+-------------------------+--------+
+		 *   The 2 LSBits represent write-protect group status of
+		 *       the lowest address group being queried.
+		 *   The 2 MSBits represent write-protect group status of
+		 *       the highst address group being queried.
+		 */
+		/* Check write-protect group status from lowest address
+		 *   group to highest address group
+		 */
+		for (j = 0; j < 8; j++) {
+			status = buf[7 - j];
+			for (k = 0; k < 8; k += 2) {
+				if (status & (3 << k))
+					wp_grp_found++;
+				wp_grp_rem--;
+				if (!wp_grp_rem)
+					goto out;
+			}
+		}
+
+		memset(buf, 0, 8);
+	}
+
+out:
+#if defined(CONFIG_MTK_EMMC_CQ_SUPPORT) || defined(CONFIG_MTK_EMMC_HW_CQ)
+	if (cmdq_en) {
+		err = mmc_cmdq_enable(card);
+		if (err) {
+			pr_notice("%s, %s: enable cmdq error %d\n",
+				__func__, mmc_hostname(card->host), err);
+			err = -EIO;
+		}
+	}
+#endif
+
+	mmc_put_card(card, NULL);
+	if (!wp_grp_rem) {
+		if (!wp_grp_found)
+			err = MMC_BLK_NO_WP;
+		else if (wp_grp_found == wp_grp_total) {
+			pr_notice("[%s]0x%llx ~ 0x%llx of %s is fully write protected\n",
+				__func__,
+				(unsigned long long)part_start,
+				(unsigned long long)part_start + part_nr_sects,
+				disk->disk_name);
+			err = MMC_BLK_FULLY_WP;
+		} else {
+			pr_notice("[%s]0x%llx ~ 0x%llx of %s is partially write protected\n",
+				__func__,
+				(unsigned long long)part_start,
+				(unsigned long long)part_start + part_nr_sects,
+				disk->disk_name);
+			err = MMC_BLK_PARTIALLY_WP;
+		}
+	}
+
+	kfree(buf);
+
+out2:
+	mmc_blk_put(md);
+
+	return err;
+}
+
 #ifdef CONFIG_MTK_EMMC_SUPPORT_OTP
 #define MMC_SEND_WRITE_PROT_TYPE        31
 #define EXT_CSD_USR_WP                  171     /* R/W */
@@ -875,6 +1095,7 @@ static const struct block_device_operations mmc_bdops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= mmc_blk_compat_ioctl,
 #endif
+	.check_disk_range_wp	= mmc_blk_check_disk_range_wp,
 };
 
 static int mmc_blk_part_switch_pre(struct mmc_card *card,
@@ -1039,8 +1260,23 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 
 	md->reset_done |= type;
 	err = mmc_hw_reset(host);
+#ifdef CONFIG_MMC_MTK
+	if (err && err != -EOPNOTSUPP) {
+		/* We failed to reset so we need to abort the request */
+		pr_notice("%s: %s: failed to reset %d\n", mmc_hostname(host),
+					__func__, err);
+		if (host->card && mmc_card_sd(host->card) && (host->ops->remove_bad_sdcard)) {
+			pr_notice("%s: %s removing bad card.\n",
+				mmc_hostname(host), __func__);
+			host->ops->remove_bad_sdcard(host);
+		}
+		return -ENODEV;
+	}
 	/* Ensure we switch back to the correct partition */
+	if (host->card) {
+#else
 	if (err != -EOPNOTSUPP) {
+#endif
 		struct mmc_blk_data *main_md =
 			dev_get_drvdata(&host->card->dev);
 		int part_err;
@@ -1927,6 +2163,13 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 	    err && mmc_blk_reset(md, card->host, type)) {
 		pr_err("%s: recovery failed!\n", req->rq_disk->disk_name);
 		mqrq->retries = MMC_NO_RETRIES;
+
+		if (card && mmc_card_sd(card) && (card->host->ops->remove_bad_sdcard)) {
+			pr_notice("%s: %s removing bad card.\n",
+				mmc_hostname(card->host), __func__);
+			card->host->ops->remove_bad_sdcard(card->host);
+		}
+
 		return;
 	}
 

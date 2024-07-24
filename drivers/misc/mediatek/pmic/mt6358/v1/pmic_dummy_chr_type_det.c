@@ -35,12 +35,18 @@
 #include <mach/upmu_hw.h>
 #include <mt-plat/mtk_boot.h>
 #include <mt-plat/v1/charger_type.h>
+#include <mt-plat/v1/charger_class.h>
 
 #define __SW_CHRDET_IN_PROBE_PHASE__
 
 static enum charger_type g_chr_type;
 #ifdef __SW_CHRDET_IN_PROBE_PHASE__
 static struct work_struct chr_work;
+#endif
+
+#if defined(CONFIG_CHARGER_SGM41516D)
+static struct charger_device *primary_charger;
+static int first_connect;
 #endif
 
 static DEFINE_MUTEX(chrdet_lock);
@@ -93,7 +99,35 @@ static int chrdet_inform_psy_changed(enum charger_type chg_type,
 
 int hw_charging_get_charger_type(void)
 {
+#if !defined(CONFIG_CHARGER_SGM41516D)
 	return STANDARD_HOST;
+#else
+	enum charger_type chr_type;
+	int timeout = 200;
+	int boot_mode = get_boot_mode();
+
+	pr_info("hw_bc11_init boot_mode = %d\n", boot_mode);
+
+	msleep(200);
+	if (boot_mode != RECOVERY_BOOT) {
+		if (first_connect == true) {
+			if (is_usb_rdy() == false) {
+				while (is_usb_rdy() == false && timeout > 0) {
+					msleep(100);
+					timeout--;
+				}
+				if (timeout == 0)
+					pr_info("CDP, timeout\n");
+				else
+					pr_info("CDP, free\n");
+			} else
+				pr_info("CDP, pass\n");
+			first_connect = false;
+		}
+	}
+	chr_type = charger_dev_get_ext_chgtyp(primary_charger);
+	return chr_type;
+#endif
 }
 
 /*****************************************************************************
@@ -177,6 +211,15 @@ static int __init pmic_chrdet_init(void)
 		pr_debug("%s: get power supply failed\n", __func__);
 		return -EINVAL;
 	}
+
+#if defined(CONFIG_CHARGER_SGM41516D)
+	primary_charger = get_charger_by_name("primary_chg");
+	if (!primary_charger) {
+		pr_debug("%s: get primary charger device failed\n", __func__);
+		return -EINVAL;
+	}
+	first_connect = true;
+#endif
 
 #ifdef __SW_CHRDET_IN_PROBE_PHASE__
 	/* do charger detect here to prevent HW miss interrupt*/

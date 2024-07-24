@@ -20,7 +20,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
-
 /* version V1 sub-banks offset base address */
 /* banks shared by multiple phys */
 #define SSUSB_SIFSLV_V1_SPLLC		0x000	/* shared by u3 phys */
@@ -62,6 +61,12 @@
 #define U3P_USBPHYACR2		0x008
 #define PA2_RG_SIF_U2PLL_FORCE_EN	BIT(18)
 
+#define PA2_RG_U2_CLKREF_REV	BIT(3)
+#define PA2_RG_U2_CLKREF_REV_VAL(x)	((0x1 & (x)) << 3)
+
+#define PA2_RG_U2_CLKREF_REV_1		GENMASK(12, 11)
+#define PA2_RG_U2_CLKREF_REV_1_VAL(x)	((0x3 & (x)) << 11)
+
 #define U3P_USBPHYACR5		0x014
 #define PA5_RG_U2_HSTX_SRCAL_EN	BIT(15)
 #define PA5_RG_U2_HSTX_SRCTRL		GENMASK(14, 12)
@@ -74,13 +79,14 @@
 #define PA6_RG_U2_PHY_REV6_MASK	(0x3)
 #define PA6_RG_U2_PHY_REV6_OFET	(30)
 
-#if (!defined CONFIG_MACH_MT6781) && (!defined CONFIG_MACH_MT6768)
+#define PA6_RG_U2_PHY_SQTH	BIT(1)
+#define PA6_RG_U2_PHY_SQTH_VAL(x)	((0x1 & (x)) << 1)
+
 #define PA6_RG_U2_PHY_REV4		BIT(28)
 #define PA6_RG_U2_PHY_REV4_VAL(x)	((0x1 & (x)) << 28)
 #define PA6_RG_U2_PHY_REV4_MASK	(0x1)
 #define PA6_RG_U2_PHY_REV4_OFET	(28)
 #define PA6_RG_U2_PHY_REV1		BIT(25)
-#endif
 
 #define PA6_RG_U2_BC11_SW_EN		BIT(23)
 #define PA6_RG_U2_OTG_VBUSCMP_EN	BIT(20)
@@ -249,6 +255,10 @@
 #define P3D_RG_CDR_BIR_LTD0		GENMASK(12, 8)
 #define P3D_RG_CDR_BIR_LTD0_VAL(x)	((0x1f & (x)) << 8)
 
+#define U3P_U3_PHYD_EQ_EYE3		0xdc
+#define P3D_RG_EQ_LEQ_SHIFT		GENMASK(26, 24)
+#define P3D_RG_EQ_LEQ_SHIFT_VAL(x)	((0x7 & (x)) << 24)
+
 #define U3P_U3_PHYD_RXDET1		0x128
 #define P3D_RG_RXDET_STB2_SET		GENMASK(17, 9)
 #define P3D_RG_RXDET_STB2_SET_VAL(x)	((0x1ff & (x)) << 9)
@@ -407,6 +417,10 @@ struct mtk_phy_instance {
 	int eye_term;
 	int eye_rev6;
 	int eye_disc;
+	int fsrxlvl;
+	int rx_sqth;
+	int eq_leq_shift;
+	int rev4;
 	bool bc12_en;
 	struct proc_dir_entry *phy_root;
 };
@@ -1310,7 +1324,10 @@ static void u2_phy_instance_power_on(struct mtk_tphy *tphy,
 #if (!defined CONFIG_MACH_MT6781) && (!defined CONFIG_MACH_MT6768)
 	tmp = readl(com + U3P_USBPHYACR6);
 	tmp &= ~PA6_RG_U2_PHY_REV6;
-	tmp |= PA6_RG_U2_PHY_REV6_VAL(1);
+	if (instance->eye_rev6)
+		tmp |= PA6_RG_U2_PHY_REV6_VAL(instance->eye_rev6);
+	else
+		tmp |= PA6_RG_U2_PHY_REV6_VAL(1);
 	writel(tmp, com + U3P_USBPHYACR6);
 
 	udelay(800);
@@ -1336,10 +1353,12 @@ static void u2_phy_instance_power_on(struct mtk_tphy *tphy,
 	/* HQA Setting */
 	tmp = readl(com + U3P_USBPHYACR6);
 	tmp &= ~PA6_RG_U2_DISCTH;
-	tmp |= PA6_RG_U2_DISCTH_VAL(0xf);
+	if (instance->eye_disc)
+		tmp |= PA6_RG_U2_DISCTH_VAL(instance->eye_disc);
+	else
+		tmp |= PA6_RG_U2_DISCTH_VAL(0xf);
 	writel(tmp, com + U3P_USBPHYACR6);
 #endif
-
 	dev_info(tphy->dev, "%s(%d)\n", __func__, index);
 }
 
@@ -1572,6 +1591,14 @@ static void u2_phy_instance_set_mode(struct mtk_tphy *tphy,
 				 &instance->eye_rev6);
 		device_property_read_u32(dev, "mediatek,eye-disc",
 				 &instance->eye_disc);
+		device_property_read_u32(dev, "mediatek,rx-sqth",
+				 &instance->rx_sqth);
+		device_property_read_u32(dev, "mediatek,fsrxlvl",
+				 &instance->fsrxlvl);
+		device_property_read_u32(dev, "mediatek,eq-leq-shift",
+				 &instance->eq_leq_shift);
+		device_property_read_u32(dev, "mediatek,rev4",
+				 &instance->rev4);
 		u2_phy_props_set(tphy, instance);
 		break;
 	case PHY_MODE_USB_HOST:
@@ -1592,6 +1619,14 @@ static void u2_phy_instance_set_mode(struct mtk_tphy *tphy,
 				 &instance->eye_rev6);
 		device_property_read_u32(dev, "mediatek,host-eye-disc",
 				 &instance->eye_disc);
+		device_property_read_u32(dev, "mediatek,rx-sqth",
+				 &instance->rx_sqth);
+		device_property_read_u32(dev, "mediatek,fsrxlvl",
+				 &instance->fsrxlvl);
+		device_property_read_u32(dev, "mediatek,eq-leq-shift",
+				 &instance->eq_leq_shift);
+		device_property_read_u32(dev, "mediatek,rev4",
+				 &instance->rev4);
 		u2_phy_props_set(tphy, instance);
 		break;
 	case PHY_MODE_USB_OTG:
@@ -1956,11 +1991,38 @@ static void phy_parse_property(struct mtk_tphy *tphy,
 				 &instance->eye_rev6);
 	device_property_read_u32(dev, "mediatek,eye-disc",
 				 &instance->eye_disc);
-	dev_dbg(dev, "bc12:%d, src:%d, vrt:%d, term:%d, rev6:%d, disc:%d\n",
+	device_property_read_u32(dev, "mediatek,rx-sqth",
+				 &instance->rx_sqth);
+	device_property_read_u32(dev, "mediatek,fsrxlvl",
+				 &instance->fsrxlvl);
+	device_property_read_u32(dev, "mediatek,eq-leq-shift",
+				 &instance->eq_leq_shift);
+	device_property_read_u32(dev, "mediatek,rev4",
+				 &instance->rev4);
+
+	dev_dbg(dev, "bc12:%d, src:%d, vrt:%d, term:%d, rev6:%d, disc:%d, rx-sqth:%d, fsrxlvl:%d, eq-leq-shift:%d, rev4:%d\n",
 		instance->bc12_en, instance->eye_src,
 		instance->eye_vrt, instance->eye_term,
-		instance->eye_rev6, instance->eye_disc);
+		instance->eye_rev6, instance->eye_disc,
+		instance->rx_sqth, instance->fsrxlvl,
+		instance->eq_leq_shift, instance->rev4);
 }
+
+static void u3_phy_props_set(struct mtk_tphy *tphy,
+			     struct mtk_phy_instance *instance)
+{
+	struct u3phy_banks *u3_banks = &instance->u3_banks;
+	u32 tmp;
+
+	if (instance->eq_leq_shift) {
+		tmp = readl(u3_banks->phyd + U3P_U3_PHYD_EQ_EYE3);
+		tmp &= ~P3D_RG_EQ_LEQ_SHIFT;
+		tmp |= P3D_RG_EQ_LEQ_SHIFT_VAL(instance->eq_leq_shift);
+		writel(tmp, u3_banks->phyd + U3P_U3_PHYD_EQ_EYE3);
+	}
+
+}
+
 
 static void u2_phy_props_set(struct mtk_tphy *tphy,
 			     struct mtk_phy_instance *instance)
@@ -2016,6 +2078,49 @@ static void u2_phy_props_set(struct mtk_tphy *tphy,
 		writel(tmp, com + U3P_USBPHYACR6);
 	}
 
+	if (instance->rx_sqth) {
+#ifdef CONFIG_MACH_MT6781
+		/* for mt6781 only */
+		/* USBPHY_CLR32(0x18, (0x1<<28)); */
+		tmp = readl(com + U3P_USBPHYACR6);
+		tmp &= ~PA6_RG_U2_PHY_REV4;
+		writel(tmp, com + U3P_USBPHYACR6);
+#endif
+
+#if (defined CONFIG_MACH_MT6781) || (defined CONFIG_MACH_MT6833)
+		/* for mt6781 && mt6833 */
+		/* USBPHY_CLR32(0x18, (0xf<<0)); */
+		tmp = readl(com + U3P_USBPHYACR6);
+		tmp &= ~PA6_RG_U2_SQTH;
+		writel(tmp, com + U3P_USBPHYACR6);
+#endif
+		tmp = readl(com + U3P_USBPHYACR6);
+		tmp &= ~PA6_RG_U2_SQTH;
+		tmp |= PA6_RG_U2_SQTH_VAL(instance->rx_sqth);
+		writel(tmp, com + U3P_USBPHYACR6);
+	}
+
+	if (instance->rev4) {
+		tmp = readl(com + U3P_USBPHYACR6);
+		tmp &= ~PA6_RG_U2_PHY_REV4;
+		tmp |= PA6_RG_U2_PHY_REV4_VAL(instance->rev4);
+		writel(tmp, com + U3P_USBPHYACR6);
+	}
+
+	if (instance->fsrxlvl) {
+		tmp = readl(com + U3P_USBPHYACR2);
+		tmp &= ~PA2_RG_U2_CLKREF_REV;
+		tmp |= PA2_RG_U2_CLKREF_REV_VAL(instance->fsrxlvl);
+		writel(tmp, com + U3P_USBPHYACR2);
+	}
+#ifdef CONFIG_MACH_MT6853
+	/* for mt6853 only */
+	/* u3phywrite32(U3D_USBPHYACR2, 11, (0x3<<11), 0x3); */
+	tmp = readl(com + U3P_USBPHYACR2);
+	tmp &= ~PA2_RG_U2_CLKREF_REV_1;
+	tmp |= PA2_RG_U2_CLKREF_REV_1_VAL(0x3);
+	writel(tmp, com + U3P_USBPHYACR2);
+#endif
 #ifdef CONFIG_MACH_MT6771
 	if ((tphy->phys[0] == instance) && (instance->type == PHY_TYPE_USB2))
 		bc11_instance = instance;
@@ -2078,8 +2183,10 @@ static int mtk_phy_power_on(struct phy *phy)
 	if (instance->type == PHY_TYPE_USB2) {
 		u2_phy_instance_power_on(tphy, instance);
 		hs_slew_rate_calibrate(tphy, instance);
+		u2_phy_props_set(tphy, instance);
 	} else if (instance->type == PHY_TYPE_USB3) {
 		u3_phy_instance_power_on(tphy, instance);
+		u3_phy_props_set(tphy, instance);
 	} else if (instance->type == PHY_TYPE_PCIE) {
 		pcie_phy_instance_power_on(tphy, instance);
 	}

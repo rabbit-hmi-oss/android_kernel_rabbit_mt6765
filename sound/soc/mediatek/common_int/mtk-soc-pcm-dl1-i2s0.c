@@ -216,19 +216,16 @@ static int Audio_i2s0_SideGen_Set(struct snd_kcontrol *kcontrol,
 
 		/* I2S3 Input Control */
 		SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_2, true);
-		u32AudioI2sOut =
-			SampleRateTransform(samplerate,
-					    Soc_Aud_Digital_Block_I2S_OUT_2)
-			<< 8;
-		u32AudioI2sOut |= Soc_Aud_I2S_FORMAT_I2S
-				  << 3; /* us3 I2s format */
-		u32AudioI2sOut |= Soc_Aud_I2S_WLEN_WLEN_32BITS
-				  << 1; /* 32 BITS */
-		u32AudioI2sOut |= (hdoutput_control ? Soc_Aud_LOW_JITTER_CLOCK
-						    : Soc_Aud_NORMAL_CLOCK)
-				  << 12;
-		Afe_Set_Reg(AFE_I2S_CON3, u32AudioI2sOut,
-			    AFE_MASK_ALL); /* set I2S3 configuration */
+		if (!I2S0_I2S3_4pin_ctrl) {
+			u32AudioI2sOut = SampleRateTransform(samplerate,
+						Soc_Aud_Digital_Block_I2S_OUT_2) << 8;
+			u32AudioI2sOut |= Soc_Aud_I2S_FORMAT_I2S << 3; /* us3 I2s format */
+			u32AudioI2sOut |= Soc_Aud_I2S_WLEN_WLEN_32BITS << 1; /* 32 BITS */
+			u32AudioI2sOut |= (hdoutput_control ? Soc_Aud_LOW_JITTER_CLOCK
+								: Soc_Aud_NORMAL_CLOCK) << 12;
+			/* set I2S3 configuration */
+			Afe_Set_Reg(AFE_I2S_CON3, u32AudioI2sOut, AFE_MASK_ALL);
+		}
 
 		/* Clear I2S0 clock-gated */
 		Afe_Set_Reg(AUDIO_TOP_CON1, 0 << 4, 0x1 << 4);
@@ -433,7 +430,7 @@ static int mtk_pcm_i2s0_stop(struct snd_pcm_substream *substream)
 	SetMemoryPathEnable(Soc_Aud_Digital_Block_MEM_DL1, false);
 
 	/* stop I2S */
-	Afe_Set_Reg(AFE_I2S_CON3, 0x0, 0x1);
+	Set2ndI2SOutEnable(false);
 
 	EnableAfe(false);
 
@@ -576,17 +573,17 @@ static int mtk_pcm_i2s0_start(struct snd_pcm_substream *substream)
 			  Soc_Aud_AFE_IO_Block_MEM_DL1,
 			  Soc_Aud_AFE_IO_Block_I2S3);
 
-	u32AudioI2S = SampleRateTransform(runtime->rate,
-					  Soc_Aud_Digital_Block_I2S_OUT_2)
-		      << 8;
-	u32AudioI2S |= Soc_Aud_I2S_FORMAT_I2S << 3;       /* us3 I2s format */
-	u32AudioI2S |= Soc_Aud_I2S_WLEN_WLEN_32BITS << 1; /* 32 BITS */
+	if (!I2S0_I2S3_4pin_ctrl) {
+		u32AudioI2S = SampleRateTransform(runtime->rate,
+						Soc_Aud_Digital_Block_I2S_OUT_2) << 8;
+		u32AudioI2S |= Soc_Aud_I2S_FORMAT_I2S << 3;       /* us3 I2s format */
+		u32AudioI2S |= Soc_Aud_I2S_WLEN_WLEN_32BITS << 1; /* 32 BITS */
 
-	if (hdoutput_control)
-		u32AudioI2S |= Soc_Aud_LOW_JITTER_CLOCK
-			       << 12; /* Low jitter mode */
+		if (hdoutput_control)
+			u32AudioI2S |= Soc_Aud_LOW_JITTER_CLOCK << 12; /* Low jitter mode */
 
-	Afe_Set_Reg(AFE_I2S_CON3, u32AudioI2S | 1, AFE_MASK_ALL);
+		Afe_Set_Reg(AFE_I2S_CON3, u32AudioI2S | 1, AFE_MASK_ALL);
+	}
 
 	SetSampleRate(Soc_Aud_Digital_Block_MEM_DL1, runtime->rate);
 	SetChannels(Soc_Aud_Digital_Block_MEM_DL1, runtime->channels);

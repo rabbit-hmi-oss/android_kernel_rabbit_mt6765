@@ -402,16 +402,23 @@ void PMIC_LP_INIT_SETTING(void)
 #if LP_INIT_SETTING_VERIFIED
 	/* For RF setting: If PL set Multi-user mode, need to sync it */
 	/*SODI3*/
+#ifdef CONFIG_MTK_TB_WIFI_ONLY
+	pmic_buck_vcore_lp(SRCLKEN1, 0, 0, HW_OFF);
+	pmic_buck_vpu_lp(SRCLKEN1, 0, 0, HW_OFF);
+	pmic_buck_vmodem_lp(SRCLKEN1, 0, 0, HW_OFF);
+	pmic_buck_vpa_lp(SW, 0, 0, SW_OFF);
+#else
 	pmic_buck_vcore_lp(SRCLKEN1, 0, 1, HW_OFF);
 	pmic_buck_vpu_lp(SRCLKEN1, 1, 1, HW_LP);
+	pmic_buck_vmodem_lp(SRCLKEN1, 0, 1, HW_OFF);
+	pmic_buck_vpa_lp(SW, 1, 1, SW_OFF);
+#endif
 	pmic_buck_vproc1_lp(SRCLKEN0, 1, 1, HW_LP);
 	pmic_buck_vproc2_lp(SW, 1, 1, SW_OFF);
 	pmic_buck_vgpu11_lp(SRCLKEN0, 1, 1, HW_LP);
 	pmic_buck_vgpu12_lp(SW, 1, 1, SW_OFF);
-	pmic_buck_vmodem_lp(SRCLKEN1, 0, 1, HW_OFF);
 	pmic_buck_vs1_lp(SRCLKEN0, 1, 1, HW_LP);
 	pmic_buck_vs2_lp(SRCLKEN0, 1, 1, HW_LP);
-	pmic_buck_vpa_lp(SW, 1, 1, SW_OFF);
 	pmic_ldo_vsram_proc1_lp(SW, 1, 1, SW_OFF);
 	pmic_ldo_vsram_proc2_lp(SW, 1, 1, SW_OFF);
 	pmic_ldo_vsram_others_lp(SRCLKEN0, 1, 1, HW_LP);
@@ -444,16 +451,23 @@ void PMIC_LP_INIT_SETTING(void)
 	pmic_ldo_vibr_lp(SW, 1, 1, SW_OFF);
 
 	/*Deepidle*/
+#ifdef CONFIG_MTK_TB_WIFI_ONLY
+	pmic_buck_vcore_lp(SRCLKEN1, 0, 0, HW_OFF);
+	pmic_buck_vpu_lp(SRCLKEN1, 0, 0, HW_OFF);
+	pmic_buck_vmodem_lp(SRCLKEN1, 0, 0, HW_OFF);
+	pmic_buck_vpa_lp(SW, 0, 0, SW_OFF);
+#else
 	pmic_buck_vcore_lp(SRCLKEN1, 0, 1, HW_OFF);
 	pmic_buck_vpu_lp(SRCLKEN1, 1, 1, HW_LP);
+	pmic_buck_vmodem_lp(SRCLKEN1, 0, 1, HW_OFF);
+	pmic_buck_vpa_lp(SW, 1, 1, SW_OFF);
+#endif
 	pmic_buck_vproc1_lp(SRCLKEN2, 1, 1, HW_LP);
 	pmic_buck_vproc2_lp(SW, 1, 1, SW_OFF);
 	pmic_buck_vgpu11_lp(SRCLKEN2, 1, 1, HW_LP);
 	pmic_buck_vgpu12_lp(SW, 1, 1, SW_OFF);
-	pmic_buck_vmodem_lp(SRCLKEN1, 0, 1, HW_OFF);
 	pmic_buck_vs1_lp(SRCLKEN2, 1, 1, HW_LP);
 	pmic_buck_vs2_lp(SRCLKEN2, 1, 1, HW_LP);
-	pmic_buck_vpa_lp(SW, 1, 1, SW_OFF);
 	pmic_ldo_vsram_proc1_lp(SW, 1, 1, SW_OFF);
 	pmic_ldo_vsram_proc2_lp(SW, 1, 1, SW_OFF);
 	pmic_ldo_vsram_others_lp(SRCLKEN2, 1, 1, HW_LP);
@@ -487,5 +501,6 @@ void PMIC_LP_INIT_SETTING(void)
 	pmic_ldo_vibr_lp(SW, 1, 1, SW_OFF);
 	pr_info("[%s] Chip Ver = %d\n", __func__, g_pmic_chip_version);
 #endif /*LP_INIT_SETTING_VERIFIED*/
+
 }
 #endif

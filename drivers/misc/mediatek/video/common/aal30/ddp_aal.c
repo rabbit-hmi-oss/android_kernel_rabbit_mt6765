@@ -19,7 +19,7 @@
 #if defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761) || \
 	defined(CONFIG_MACH_MT6580) || defined(CONFIG_MACH_MT6779) || \
 	defined(CONFIG_MACH_MT6768) || defined(CONFIG_MACH_MT6771) || \
-    defined(CONFIG_MACH_MT6785) || defined(CONFIG_MACH_MT6785)
+	defined(CONFIG_MACH_MT6785) || defined(CONFIG_MACH_MT6739)
 #include <mtk_leds_drv.h>
 #else
 #define backlight_brightness_set(x) do { } while (0)

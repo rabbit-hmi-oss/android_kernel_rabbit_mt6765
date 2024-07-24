@@ -454,7 +454,7 @@ static void vow_service_Init(void)
 {
 	int I;
 	bool ret;
-	unsigned int vow_ipi_buf[3];
+	unsigned int vow_ipi_buf[4];
 
 	VOWDRV_DEBUG("%s():%x\n", __func__, init_flag);
 	/* common part */
@@ -559,9 +559,9 @@ static void vow_service_Init(void)
 		vow_pcm_dump_init();
 		vowserv.scp_dual_mic_switch = VOW_ENABLE_DUAL_MIC;
 		vowserv.mtkif_type = 0;
-		//set default value to platform identifier and version
+		/* set meaningless default value to platform identifier and version */
 		memset(vowserv.google_engine_arch, 0, VOW_ENGINE_INFO_LENGTH_BYTE);
-		if (sprintf(vowserv.google_engine_arch, "32fe89be-5205-3d4b-b8cf-55d650d9d200") < 0)
+		if (sprintf(vowserv.google_engine_arch, "12345678-1234-1234-1234-123456789012") < 0)
 			VOWDRV_DEBUG("%s(), sprintf fail", __func__);
 		vowserv.google_engine_version = DEFAULT_GOOGLE_ENGINE_VER;
 		memset(vowserv.alexa_engine_version, 0, VOW_ENGINE_INFO_LENGTH_BYTE);
@@ -1463,8 +1463,10 @@ static void vow_service_GetVowDumpData(void)
 					   size_left);
 				mutex_unlock(&vow_vmalloc_lock);
 				temp_dump_info.kernel_dump_idx = size_left;
-			} else
+			} else {
 				temp_dump_info.kernel_dump_idx = 0;
+				temp_dump_info.user_dump_idx = 0;
+			}
 			spin_lock_irqsave(&vowdrv_dump_lock, flags);
 			vow_dump_info[i].kernel_dump_idx = temp_dump_info.kernel_dump_idx;
 			vow_dump_info[i].user_dump_idx = temp_dump_info.user_dump_idx;

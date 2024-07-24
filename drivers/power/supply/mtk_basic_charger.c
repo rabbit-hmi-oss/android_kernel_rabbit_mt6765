@@ -209,6 +209,7 @@ static bool select_charging_current_limit(struct mtk_charger *info,
 				pdata->input_current_limit_by_aicl =
 					info->data.max_dmivr_charger_current;
 		}
+#if 0 /* ignore rp */
 		if (is_typec_adapter(info)) {
 			if (adapter_dev_get_property(info->pd_adapter, TYPEC_RP_LEVEL)
 				== 3000) {
@@ -229,63 +230,64 @@ static bool select_charging_current_limit(struct mtk_charger *info,
 				adapter_dev_get_property(info->pd_adapter,
 					TYPEC_RP_LEVEL));
 		}
+#endif
 	}
 
 	if (info->enable_sw_jeita) {
 		if (IS_ENABLED(CONFIG_USBIF_COMPLIANCE)
 			&& info->chr_type == POWER_SUPPLY_TYPE_USB)
 			chr_debug("USBIF & STAND_HOST skip current check\n");
-		else {
-			if (info->sw_jeita.sm == TEMP_T0_TO_T1) {
-				pdata->input_current_limit = 500000;
-				pdata->charging_current_limit = 350000;
+		else if (pdata->charging_current_limit > info->sw_jeita.cc)
+			chr_err("[%s] jeita cc:%duA\n", __func__, info->sw_jeita.cc);
+			pdata->charging_current_limit = info->sw_jeita.cc;
+	} else {
+		/* not support charge control interface for thermal
+		 * if sw jeita is enabled, which will replace thermal policy
+		 * */
+		if (pdata->thermal_charging_current_limit != -1) {
+			if (pdata->thermal_charging_current_limit <
+					pdata->charging_current_limit) {
+				pdata->charging_current_limit =
+					pdata->thermal_charging_current_limit;
+				info->setting.charging_current_limit1 =
+					pdata->thermal_charging_current_limit;
 			}
-		}
-	}
+		} else
+			info->setting.charging_current_limit1 = -1;
 
-	if (pdata->thermal_charging_current_limit != -1) {
-		if (pdata->thermal_charging_current_limit <
-			pdata->charging_current_limit) {
-			pdata->charging_current_limit =
-					pdata->thermal_charging_current_limit;
-			info->setting.charging_current_limit1 =
-					pdata->thermal_charging_current_limit;
-		}
-	} else
-		info->setting.charging_current_limit1 = -1;
-
-	if (pdata->thermal_input_current_limit != -1) {
-		if (pdata->thermal_input_current_limit <
-			pdata->input_current_limit) {
-			pdata->input_current_limit =
+		if (pdata->thermal_input_current_limit != -1) {
+			if (pdata->thermal_input_current_limit <
+					pdata->input_current_limit) {
+				pdata->input_current_limit =
 					pdata->thermal_input_current_limit;
-			info->setting.input_current_limit1 =
+				info->setting.input_current_limit1 =
 					pdata->input_current_limit;
-		}
-	} else
-		info->setting.input_current_limit1 = -1;
+			}
+		} else
+			info->setting.input_current_limit1 = -1;
 
-	if (pdata2->thermal_charging_current_limit != -1) {
-		if (pdata2->thermal_charging_current_limit <
-			pdata2->charging_current_limit) {
-			pdata2->charging_current_limit =
+		if (pdata2->thermal_charging_current_limit != -1) {
+			if (pdata2->thermal_charging_current_limit <
+					pdata2->charging_current_limit) {
+				pdata2->charging_current_limit =
 					pdata2->thermal_charging_current_limit;
-			info->setting.charging_current_limit2 =
+				info->setting.charging_current_limit2 =
 					pdata2->charging_current_limit;
-		}
-	} else
-		info->setting.charging_current_limit2 = -1;
+			}
+		} else
+			info->setting.charging_current_limit2 = -1;
 
-	if (pdata2->thermal_input_current_limit != -1) {
-		if (pdata2->thermal_input_current_limit <
-			pdata2->input_current_limit) {
-			pdata2->input_current_limit =
+		if (pdata2->thermal_input_current_limit != -1) {
+			if (pdata2->thermal_input_current_limit <
+					pdata2->input_current_limit) {
+				pdata2->input_current_limit =
 					pdata2->thermal_input_current_limit;
-			info->setting.input_current_limit2 =
+				info->setting.input_current_limit2 =
 					pdata2->input_current_limit;
-		}
-	} else
-		info->setting.input_current_limit2 = -1;
+			}
+		} else
+			info->setting.input_current_limit2 = -1;
+	}
 
 	if (is_basic == true && pdata->input_current_limit_by_aicl != -1) {
 		if (pdata->input_current_limit_by_aicl <

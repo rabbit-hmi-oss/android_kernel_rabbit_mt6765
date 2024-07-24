@@ -35,7 +35,7 @@
 #include "hid-ids.h"
 
 #define unk	KEY_UNKNOWN
-
+static int usb_input_active_num = 0;
 static const unsigned char hid_keyboard[256] = {
 	  0,  0,  0,  0, 30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38,
 	 50, 49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44,  2,  3,
@@ -69,6 +69,12 @@ static const struct {
 		&max, EV_ABS, (c))
 #define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
 		&max, EV_KEY, (c))
+
+bool hidinput_is_actived(void)
+{
+	return !!usb_input_active_num;
+}
+EXPORT_SYMBOL_GPL(hidinput_is_actived);
 
 static bool match_scancode(struct hid_usage *usage,
 			   unsigned int cur_idx, unsigned int scancode)
@@ -1831,6 +1837,10 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 		hid_dbg(hid,
 			"Some usages could not be mapped, please use HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE if this is legitimate.\n");
 
+	if (application == HID_GD_KEYBOARD || application == HID_GD_MOUSE) {
+		usb_input_active_num++;
+		pr_err("[%s] usb_input_active_num : %d\n", __func__, usb_input_active_num);
+	}
 	return 0;
 
 out_unwind:
@@ -1849,9 +1859,15 @@ void hidinput_disconnect(struct hid_device *hid)
 
 	list_for_each_entry_safe(hidinput, next, &hid->inputs, list) {
 		list_del(&hidinput->list);
-		if (hidinput->registered)
+		if (hidinput->registered) {
+			if (hidinput->application == HID_GD_KEYBOARD || hidinput->application == HID_GD_MOUSE) {
+				usb_input_active_num--;
+				pr_err("[%s] usb_input_active_num : %d\n", __func__, usb_input_active_num);
+				if (usb_input_active_num < 0)
+					usb_input_active_num = 0;
+			}
 			input_unregister_device(hidinput->input);
-		else
+		} else
 			input_free_device(hidinput->input);
 		kfree(hidinput->name);
 		kfree(hidinput);

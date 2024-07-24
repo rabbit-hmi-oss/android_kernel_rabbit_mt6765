@@ -266,10 +266,10 @@ int vcu_dec_ipi_handler(void *data, unsigned int len, void *priv)
 		mtk_vcodec_perf_log("irq:%ld",
 			(t_e.tv_sec - t_s.tv_sec) * 1000000 +
 			(t_e.tv_usec - t_s.tv_usec));
-		if (ret == -1 && msg->status == MTK_VDEC_CORE) {
-			/* dump smi when vdec core timeout */
-			smi_debug_bus_hang_detect(0, "VCODEC");
-		}
+		//if (ret == -1 && msg->status == MTK_VDEC_CORE) {
+			///* dump smi when vdec core timeout */
+			//smi_debug_bus_hang_detect(0, "VCODEC");
+		//}
 		msg->status = ret;
 		ret = 1;
 	} else if (msg->status == 0) {
@@ -433,6 +433,9 @@ static int vcodec_vcu_send_msg(struct vdec_vcu_inst *vcu, void *msg, int len)
 	mtk_vcodec_debug(vcu, "id=%X", *(uint32_t *)msg);
 	if (vcu->abort)
 		return -EIO;
+
+	if (vcu->ctx != NULL && vcu->ctx->dev->is_codec_suspending == 1)
+		mtk_vcodec_err(vcu, "VDEC blocked by suspend\n");
 
 	vcu_get_file_lock();
 	vcu_get_task(&task, &f, 0);

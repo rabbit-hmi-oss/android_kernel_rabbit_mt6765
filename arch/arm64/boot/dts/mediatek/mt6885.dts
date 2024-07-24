@@ -2620,6 +2620,7 @@ page_owner=on loop.max_part=7";
 		charger = <&mt6360_chg>;
 		dev-conn = <&ssusb>;
 		mediatek,bypss-typec-sink = <1>;
+		not_support_u3;
 	};
 
 	usb_boost_manager {
@@ -2684,9 +2685,11 @@ page_owner=on loop.max_part=7";
 			<0 0>,
 			<0 0>;
 		#endif
-
+	/* Reference clock control mode */
+	/* SW mode: 0, Half-HW mode: 1, HW mode: 2 */
+		mediatek,refclk_ctrl = <2>;
 		vcc-supply = <&mt_pmic_vemc_ldo_reg>;
-		vccq2-supply = <&mt_pmic_vufs_ldo_reg>;
+		vcc-fixed-regulator;
 	};
 
 	md_ccif2@1023d000 {
@@ -3402,7 +3405,7 @@ page_owner=on loop.max_part=7";
 		mediatek,check_dfd_support = <1>;
 		mediatek,dfd_infra_base = <0x34>;
 		mediatek,dfd_ap_addr_offset = <24>;
-		mediatek,dfd_latch_offset = <0x48>;
+		mediatek,dfd_latch_offset = <0x44>;
 	};
 
 	dfd_cache: dfd_cache {
@@ -3786,6 +3789,11 @@ page_owner=on loop.max_part=7";
 	irq_nfc: irq_nfc {
 		compatible = "mediatek,irq_nfc-eint";
 	};
+
+	mtee_svp: mtee_svp {
+		compatible = "medaitek,svp";
+	};
+	/* svp end */
 
 	mdp_mutex: mdp_mutex@1f001000 {
 		compatible = "mediatek,mdp_mutex";
@@ -4916,7 +4924,8 @@ page_owner=on loop.max_part=7";
 			"MTK_DRM_OPT_LAYER_REC",
 			"MTK_DRM_OPT_CLEAR_LAYER",
 			"MTK_DRM_OPT_SF_PF",
-			"MTK_DRM_OPT_PRIM_DUAL_PIPE";
+			"MTK_DRM_OPT_PRIM_DUAL_PIPE",
+			"MTK_DRM_OPT_DYN_MIPI_CHANGE";
 
 		helper-value = <0>, /*MTK_DRM_OPT_STAGE*/
 			<1>, /*MTK_DRM_OPT_USE_CMDQ*/
@@ -4957,7 +4966,8 @@ page_owner=on loop.max_part=7";
 			<0>, /*MTK_DRM_OPT_LAYER_REC*/
 			<1>, /*MTK_DRM_OPT_CLEAR_LAYER*/
 			<1>, /*MTK_DRM_OPT_SF_PF*/
-			<1>; /*MTK_DRM_OPT_PRIM_DUAL_PIPE*/
+			<1>, /*MTK_DRM_OPT_PRIM_DUAL_PIPE*/
+			<1>; /*MTK_DRM_OPT_DYN_MIPI_CHANGE*/
 	};
 
 	disp_mutex0: disp_mutex@14117000 {
@@ -6590,7 +6600,7 @@ page_owner=on loop.max_part=7";
 		reg = <0 0x11D01000 0 0x1000>,
 			<0 0x11000180 0 0x180>;
 		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&imp_iic_wrap_s_clk CLK_IMPC_AP_I2C12_RO>,
+		clocks = <&imp_iic_wrap_s_clk CLK_IMPS_AP_I2C2_RO>,
 			<&infracfg_ao_clk CLK_IFRAO_AP_DMA_PS>;
 		clock-names = "main", "dma";
 		clock-div = <5>;
@@ -8540,11 +8550,6 @@ page_owner=on loop.max_part=7";
 #include "mediatek/mt6359p.dtsi"
 #include "mediatek/cust_mt6885_msdc.dtsi"
 #include "mediatek/v1/mt6360_pd.dtsi"
-
-&mt_pmic_vemc_ldo_reg {
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
-};
 
 #ifdef CONFIG_MTK_ENABLE_GENIEZONE
 #include "mediatek/trusty.dtsi"

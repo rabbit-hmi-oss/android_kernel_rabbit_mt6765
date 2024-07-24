@@ -94,12 +94,101 @@
 	};
 };
 
+&i2c4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <400000>;
+		hynitron@1a{ 
+			compatible = "hynitron,hyn_ts";	
+			reg = <0x15>;  					
+			hynitron,reset-gpio = <&pio 174 0x0>; 
+			hynitron,irq-gpio = <&pio 0 0x0>; 	
+			hynitron,max-touch-number = <2>;			
+			hynitron,display-coords =  <480 640>;	
+
+			//hynitron,have-key;
+			//hynitron,key-number = <3>;	
+			//hynitron,key-code = <139 172 158>; 	
+			//hynitron,key-y-coord = <2000 2000 2000>; 
+			//hynitron,key-x-coord = <200 600 800>;
+		};
+};
+
 &i2c6 {
+	clock-frequency = <400000>;
+/*
 	ext_buck_vgpu@55 {
 		regulator-name ="ext_buck_vgpu";
 		regulator-min-microvolt = <300000>;
 		regulator-max-microvolt = <1300000>;
 		vsel_pin = <2>;
+	};
+*/
+	och1970@0d {
+		compatible = "och1970";
+		reg = <0x0d>;
+		reset-gpio = <&pio 173 0x0>;
+	};
+/*
+	aw37004@28 {
+		compatible = "awinic,aw37004";
+		reg = <0x28>;
+		//enable-gpio = <&gpio 164 0>;
+		status = "okay";
+
+		aw37004_dvdd1: dvdd1 {
+			regulator-min-microvolt = <600000>;
+			regulator-max-microvolt = <2130000>;
+			regulator-min-microamp = <1300000>;
+			regulator-max-microamp = <1720000>;
+			regulator-active-discharge = <1>;
+			//regulator-always-on;
+			init-voltage = <1200000>;
+			ilimit-ua = <1100000>;
+		};
+
+		aw37004_dvdd2: dvdd2 {
+			regulator-min-microvolt = <600000>;
+			regulator-max-microvolt = <2130000>;
+			regulator-min-microamp = <1300000>;
+			regulator-max-microamp = <1720000>;
+			regulator-active-discharge = <1>;
+			//regulator-always-on;
+			init-voltage = <1200000>;
+			ilimit-ua = <1200000>;
+		};
+
+		aw37004_avdd1: avdd1 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <4387500>;
+			regulator-min-microamp = <480000>;
+			regulator-max-microamp = <900000>;
+			regulator-active-discharge = <1>;
+			//regulator-always-on;
+			init-voltage = <2800000>;
+			ilimit-ua = <480000>;
+		};
+
+		aw37004_avdd2: avdd2 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <4387500>;
+			regulator-min-microamp = <480000>;
+			regulator-max-microamp = <900000>;
+			regulator-active-discharge = <1>;
+			//regulator-always-on;
+			init-voltage = <2800000>;
+			ilimit-ua = <480000>;
+		};
+	};
+*/
+};
+
+&i2c0 {
+	aw87xxx_pa@58 {
+		compatible = "awinic,aw87xxx_pa";
+		reg = <0x58>;
+		dev_index = < 0 >;
+		status = "okay";
 	};
 };
 
@@ -109,7 +198,7 @@
 	};
 	gpslna_pins_init: gpslna@0 {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO91__FUNC_GPIO91>;
+			pinmux = <PINMUX_GPIO177__FUNC_GPIO177>;
 			slew-rate = <0>;
 			bias-disable;
 			output-low;
@@ -117,14 +206,14 @@
 	};
 	gpslna_pins_oh: gpslna@1 {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO91__FUNC_GPIO91>;
+			pinmux = <PINMUX_GPIO177__FUNC_GPIO177>;
 			slew-rate = <1>;
 			output-high;
 		};
 	};
 	gpslna_pins_ol: gpslna@2 {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO91__FUNC_GPIO91>;
+			pinmux = <PINMUX_GPIO177__FUNC_GPIO177>;
 			slew-rate = <1>;
 			output-low;
 		};
@@ -186,7 +275,7 @@
 };
 /* accdet end */
 
-/* FINGERPRINT start */
+/* FINGERPRINT start 
 &spi0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -225,9 +314,20 @@
 		};
 	};
 };
-/* FINGERPRINT end */
+ FINGERPRINT end */
 
-/* IRTX GPIO end */
+&spi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cap_touch@0{
+		compatible = "mediatek,cap_touch";
+		reg = <0x0>;
+		spi-max-frequency = <8000000>;
+		status = "okay";
+	};
+};
+
+/* IRTX GPIO end 
 &irtx_pwm {
 	pinctrl-names = "irtx_gpio_led_default", "irtx_gpio_led_set";
 	pinctrl-0 = <&irtx_gpio_led_default>;
@@ -253,7 +353,7 @@
 		};
 	};
 };
-/* IRTX GPIO Settings -End */
+ IRTX GPIO Settings -End */
 
 /* AUDIO GPIO standardization */
 &audgpio {
@@ -397,6 +497,168 @@
 
 &mt6370_chg {
 	bc12_sel = <1>;
+	mivr = <4400000>;
+	cv = <4450000>;
+	ieoc = <300000>;
+};
+
+&pio {
+	ms35774_vm_high: ms35774_vm_high@0 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO163__FUNC_GPIO163>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	ms35774_vm_low: ms35774_vm_low@1 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO163__FUNC_GPIO163>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	ms35774_enn_high: ms35774_enn_high@2 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO166__FUNC_GPIO166>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	ms35774_enn_low: ms35774_enn_low@3 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO166__FUNC_GPIO166>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	ms35774_dir_high: ms35774_dir_high@4 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO167__FUNC_GPIO167>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	ms35774_dir_low: ms35774_dir_low@5 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO167__FUNC_GPIO167>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	ms35774_step_high: ms35774_step_high@6 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO168__FUNC_GPIO168>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	ms35774_step_low: ms35774_step_low@7 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO168__FUNC_GPIO168>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	ms35774_pdn_high: ms35774_pdn_high@8 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO164__FUNC_GPIO164>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	ms35774_pdn_low: ms35774_pdn_low@9 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO164__FUNC_GPIO164>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	ms35774_ms1_high: ms35774_ms1_high@10 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO171__FUNC_GPIO171>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	ms35774_ms1_low: ms35774_ms1_low@11 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO171__FUNC_GPIO171>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	ms35774_ms2_high: ms35774_ms2_high@12 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO170__FUNC_GPIO170>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	ms35774_ms2_low: ms35774_ms2_low@13 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO170__FUNC_GPIO170>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+};
+
+&step_motor_ms35774 {
+	pinctrl-names =
+		"ms35774_vm_high",
+		"ms35774_vm_low",
+		"ms35774_enn_high",
+		"ms35774_enn_low",
+		"ms35774_dir_high",
+		"ms35774_dir_low",
+		"ms35774_step_high",
+		"ms35774_step_low",
+		"ms35774_pdn_high",
+		"ms35774_pdn_low",
+		"ms35774_ms1_high",
+		"ms35774_ms1_low",
+		"ms35774_ms2_high",
+		"ms35774_ms2_low";
+	pinctrl-0 = <&ms35774_vm_high>;
+	pinctrl-1 = <&ms35774_vm_low>;
+	pinctrl-2 = <&ms35774_enn_high>;
+	pinctrl-3 = <&ms35774_enn_low>;
+	pinctrl-4 = <&ms35774_dir_high>;
+	pinctrl-5 = <&ms35774_dir_low>;
+	pinctrl-6 = <&ms35774_step_high>;
+	pinctrl-7 = <&ms35774_step_low>;
+	pinctrl-8 = <&ms35774_pdn_high>;
+	pinctrl-9 = <&ms35774_pdn_low>;
+	pinctrl-10 = <&ms35774_ms1_high>;
+	pinctrl-11 = <&ms35774_ms1_low>;
+	pinctrl-12 = <&ms35774_ms2_high>;
+	pinctrl-13 = <&ms35774_ms2_low>;
+	status = "okay";
+};
+
+&pio {
+	mtkfb_pins_lcm_rst_out1_gpio: lcm_rst_out1_gpio {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO45__FUNC_GPIO45>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+
+	mtkfb_pins_lcm_rst_out0_gpio: lcm_rst_out0_gpio {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO45__FUNC_GPIO45>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+};
+
+&mtkfb {
+	pinctrl-names = "lcm_rst_out1_gpio", "lcm_rst_out0_gpio";
+	pinctrl-0 = <&mtkfb_pins_lcm_rst_out1_gpio>;
+	pinctrl-1 = <&mtkfb_pins_lcm_rst_out0_gpio>;
+	status = "okay";
 };
 
 #include "k65v1_64_bsp/cust.dtsi"

@@ -703,7 +703,8 @@ static int mt6315_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, chip);
 
 	/* Read chip revision to update constraints */
-	if (regmap_read(regmap, MT6315_SWCID_H, &reg_value) < 0) {
+	regmap_read(regmap, MT6315_SWCID_H, &reg_value);
+	if (reg_value == 0) {
 		dev_notice(&pdev->dev, "Failed to read Chip ID\n");
 		return -EIO;
 	}

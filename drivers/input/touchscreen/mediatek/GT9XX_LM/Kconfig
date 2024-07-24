@@ -219,5 +219,13 @@ config GTP_POWER_CTRL_SLEEP
 	  otherwise it will use regulator subsystem.
 	  If unsure, say N.
 
+config GT9XX_LM_ENABLE_8788
+	bool "tb8788p5_64_wifi_7663 enable touch"
+	help
+	  Say Y here if you have touch panel GT9XX_LM_ENABLE_8788.
+	  When turn this option on,touch can work normally,
+	  otherwise touch work failed.
+	  If unsure, say N.
+
 #endif
 endmenu

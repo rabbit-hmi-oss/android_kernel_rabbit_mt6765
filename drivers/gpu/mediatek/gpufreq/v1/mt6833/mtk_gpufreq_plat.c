@@ -817,27 +817,27 @@ static void mt_gpufreq_mtcmos_control(enum mt_power_state power)
 
 static void mt_gpufreq_buck_control(enum mt_power_state power)
 {
-	gpufreq_pr_debug("@%s: power=%d", __func__, power);
+	gpufreq_pr_info("@%s: power vgpu_vsram =%d", __func__, power);
 
 	if (power == POWER_ON) {
-		if (regulator_enable(g_pmic->reg_vsram_gpu)) {
-			gpufreq_pr_info("@%s: fail tp enable VSRAM_GPU\n",
+		if (regulator_enable(g_pmic->reg_vgpu)) {
+			gpufreq_pr_info("@%s: fail tp enable VGPU\n",
 					__func__);
 			return;
 		}
-		if (regulator_enable(g_pmic->reg_vgpu)) {
-			gpufreq_pr_info("@%s: fail to enable VGPU\n",
+		if (regulator_enable(g_pmic->reg_vsram_gpu)) {
+			gpufreq_pr_info("@%s: fail to enable VSRAM_GPU\n",
 					__func__);
 			return;
 		}
 	} else {
-		if (regulator_disable(g_pmic->reg_vgpu)) {
-			gpufreq_pr_info("@%s: fail to disable VGPU\n",
+		if (regulator_disable(g_pmic->reg_vsram_gpu)) {
+			gpufreq_pr_info("@%s: fail to disable VSRAM_GPU\n",
 					__func__);
 			return;
 		}
-		if (regulator_disable(g_pmic->reg_vsram_gpu)) {
-			gpufreq_pr_info("@%s: fail to disable VSRAM_GPU\n",
+		if (regulator_disable(g_pmic->reg_vgpu)) {
+			gpufreq_pr_info("@%s: fail to disable VGPU\n",
 					__func__);
 			return;
 		}
@@ -1010,6 +1010,7 @@ void mt_gpufreq_power_control(enum mt_power_state power, enum mt_cg_state cg,
 				readl(g_sleep + 0x16C));
 #endif
 		if (g_probe_done) {
+			mutex_unlock(&mt_gpufreq_lock);
 			gpufreq_pr_info("@%s: power=%d g_power_count=%d, skip by dfd_trigger\n",
 					__func__, power, g_power_count);
 			return;
@@ -1806,6 +1807,8 @@ static unsigned int __mt_gpufreq_get_segment_id(void)
 		segment_id = MT6833M_SEGMENT;    /* 5G-CM */
 		break;
 	case 0x06:
+	case 0x07:
+	case 0x08:
 		segment_id = MT6833T_SEGMENT;    /* 5G-C+ */
 		break;
 	default:

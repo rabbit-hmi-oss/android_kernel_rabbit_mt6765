@@ -12,6 +12,8 @@
 #define VPU_MAX_NUM_PORTS 32
 #define VPU_MAX_NUM_PROPS 32
 #define VPU_MAX_NUM_CORES 3
+#define VPU_MAX_NUM_PLANE 3
+
 extern unsigned int efuse_data;
 extern struct ion_client *my_ion_client;
 

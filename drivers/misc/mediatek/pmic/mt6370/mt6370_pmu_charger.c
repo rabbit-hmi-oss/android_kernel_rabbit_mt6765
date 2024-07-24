@@ -22,13 +22,18 @@
 #include <mt-plat/mtk_boot.h>
 #include <mtk_musb.h>
 
+#ifdef CONFIG_MACH_MT6771
+#include <mt-plat/v1/charger_class.h>
+#else
 #include <charger_class.h>
+#endif
 #include <mtk_charger.h>
 
 #include "inc/mt6370_pmu_fled.h"
 #include "inc/mt6370_pmu_charger.h"
 #include "inc/mt6370_pmu.h"
 #include <tcpm.h>
+#include <linux/reboot.h>
 
 #define MT6370_PMU_CHARGER_DRV_VERSION	"1.1.30_MTK"
 
@@ -84,6 +89,17 @@ enum mt6370_usbsw_state {
 	MT6370_USBSW_CHG = 0,
 	MT6370_USBSW_USB,
 };
+
+#ifdef CONFIG_MACH_MT6771
+/* charger_dev notify */
+enum {
+	CHARGER_DEV_NOTIFY_VBUS_OVP,
+	CHARGER_DEV_NOTIFY_BAT_OVP,
+	CHARGER_DEV_NOTIFY_EOC,
+	CHARGER_DEV_NOTIFY_RECHG,
+	CHARGER_DEV_NOTIFY_SAFETY_TIMEOUT,
+};
+#endif
 
 struct mt6370_pmu_charger_desc {
 	u32 ichg;
@@ -175,7 +191,7 @@ struct mt6370_pmu_charger_data {
 /* These default values will be used if there's no property in dts */
 static struct mt6370_pmu_charger_desc mt6370_default_chg_desc = {
 	.ichg = 2000000,		/* uA */
-	.aicr = 500000,			/* uA */
+	.aicr = 1000000,			/* uA */
 	.mivr = 4400000,		/* uV */
 	.cv = 4350000,			/* uA */
 	.ieoc = 250000,			/* uA */
@@ -1697,6 +1713,7 @@ static int __mt6370_set_ichg(struct mt6370_pmu_charger_data *chg_data, u32 uA)
 	/* Store Ichg setting */
 	__mt6370_get_ichg(chg_data, &chg_data->ichg);
 
+#if 0
 	if (chip_vid != RT5081_VENDOR_ID && chip_vid != MT6370_VENDOR_ID)
 		goto bypass_ieoc_workaround;
 	/* Workaround to make IEOC accurate */
@@ -1709,14 +1726,70 @@ static int __mt6370_set_ichg(struct mt6370_pmu_charger_data *chg_data, u32 uA)
 	}
 
 bypass_ieoc_workaround:
+#endif
 	return ret;
 }
 
-static int __mt6370_set_cv(struct mt6370_pmu_charger_data *chg_data, u32 uV)
+static int __mt6370_get_cv(struct mt6370_pmu_charger_data *chg_data, u32 *cv)
 {
 	int ret = 0;
 	u8 reg_cv = 0;
 
+	ret = mt6370_pmu_reg_read(chg_data->chip, MT6370_PMU_REG_CHGCTRL4);
+	if (ret < 0)
+		return ret;
+
+	reg_cv = (ret & MT6370_MASK_BAT_VOREG) >> MT6370_SHIFT_BAT_VOREG;
+
+	*cv = mt6370_find_closest_real_value(
+		MT6370_BAT_VOREG_MIN,
+		MT6370_BAT_VOREG_MAX,
+		MT6370_BAT_VOREG_STEP,
+		reg_cv
+	);
+
+	return ret;
+}
+
+static int mt6370_get_cv(struct charger_device *chg_dev, u32 *cv)
+{
+	struct mt6370_pmu_charger_data *chg_data = dev_get_drvdata(&chg_dev->dev);
+
+	return __mt6370_get_cv(chg_data, cv);
+}
+
+static int __mt6370_set_cv(struct mt6370_pmu_charger_data *chg_data, u32 uV)
+{
+	int ret = 0/*, reg_val = 0 6371 not support */;
+	u8 reg_cv = 0;
+	u32 ori_cv;
+
+	/* Get the original cv to check if this step of setting cv is necessary */
+	ret = __mt6370_get_cv(chg_data, &ori_cv);
+	if (ret < 0)
+		return ret;
+
+	if (ori_cv == uV)
+		return 0;
+
+	/* Enable hidden mode */
+	ret = mt6370_enable_hidden_mode(chg_data, true);
+	if (ret < 0)
+		return ret;
+
+#if 0 /* 6371 not support */
+	/* Store BATOVP Level */
+	reg_val = mt6370_pmu_reg_read(chg_data->chip, MT6370_PMU_REG_CHGHIDDENCTRL22);
+	if (reg_val < 0)
+		goto out;
+
+	/* Disable BATOVP (set 0x45[6:5] = b'11) */
+	ret = mt6370_pmu_reg_write(chg_data->chip, MT6370_PMU_REG_CHGHIDDENCTRL22,
+				   reg_val | MT6370_MASK_BATOVP_LVL);
+	if (ret < 0)
+		goto out;
+#endif
+	/* Set CV */
 	reg_cv = mt6370_find_closest_reg_value(
 		MT6370_BAT_VOREG_MIN,
 		MT6370_BAT_VOREG_MAX,
@@ -1734,6 +1807,29 @@ static int __mt6370_set_cv(struct mt6370_pmu_charger_data *chg_data, u32 uV)
 		MT6370_MASK_BAT_VOREG,
 		reg_cv << MT6370_SHIFT_BAT_VOREG
 	);
+	if (ret < 0)
+		goto out;
+
+	/* Delay 5ms */
+	mdelay(5);
+
+#if 0 /* 6371 not support */
+	/* Enable BATOVP and restore BATOVP level */
+	ret = mt6370_pmu_reg_write(chg_data->chip, MT6370_PMU_REG_CHGHIDDENCTRL22, reg_val);
+#endif
+
+out:
+	/* Disable hidden mode */
+	return mt6370_enable_hidden_mode(chg_data, false);
+}
+
+static int mt6370_set_cv(struct charger_device *chg_dev, u32 uV)
+{
+	int ret = 0;
+	struct mt6370_pmu_charger_data *chg_data =
+		dev_get_drvdata(&chg_dev->dev);
+
+	ret = __mt6370_set_cv(chg_data, uV);
 
 	return ret;
 }
@@ -2116,40 +2212,6 @@ out:
 	if (ret >= 0)
 		chg_data->mivr = uV;
 	mutex_unlock(&chg_data->pp_lock);
-	return ret;
-}
-
-static int mt6370_get_cv(struct charger_device *chg_dev, u32 *cv)
-{
-	int ret = 0;
-	u8 reg_cv = 0;
-	struct mt6370_pmu_charger_data *chg_data =
-		dev_get_drvdata(&chg_dev->dev);
-
-	ret = mt6370_pmu_reg_read(chg_data->chip, MT6370_PMU_REG_CHGCTRL4);
-	if (ret < 0)
-		return ret;
-
-	reg_cv = (ret & MT6370_MASK_BAT_VOREG) >> MT6370_SHIFT_BAT_VOREG;
-
-	*cv = mt6370_find_closest_real_value(
-		MT6370_BAT_VOREG_MIN,
-		MT6370_BAT_VOREG_MAX,
-		MT6370_BAT_VOREG_STEP,
-		reg_cv
-	);
-
-	return ret;
-}
-
-static int mt6370_set_cv(struct charger_device *chg_dev, u32 uV)
-{
-	int ret = 0;
-	struct mt6370_pmu_charger_data *chg_data =
-		dev_get_drvdata(&chg_dev->dev);
-
-	ret = __mt6370_set_cv(chg_data, uV);
-
 	return ret;
 }
 
@@ -2876,6 +2938,23 @@ static int mt6370_get_zcv(struct charger_device *chg_dev, u32 *uV)
 	return 0;
 }
 
+//#ifdef CONFIG_MACH_MT6771
+#if 1
+static int mt6370_do_event(struct charger_device *chg_dev, u32 event, u32 args)
+{
+	switch (event) {
+	case 0:
+		charger_dev_notify(chg_dev, CHARGER_DEV_NOTIFY_EOC);
+		break;
+	case 1:
+		charger_dev_notify(chg_dev, CHARGER_DEV_NOTIFY_RECHG);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+#else
 static int mt6370_do_event(struct charger_device *chg_dev, u32 event, u32 args)
 {
 	struct mt6370_pmu_charger_data *chg_data =
@@ -2897,6 +2976,7 @@ static int mt6370_do_event(struct charger_device *chg_dev, u32 event, u32 args)
 	}
 	return 0;
 }
+#endif
 
 #ifdef MT6370_APPLE_SAMSUNG_TA_SUPPORT
 static int mt6370_detect_apple_samsung_ta(
@@ -4089,6 +4169,37 @@ static struct charger_ops mt6370_ls_ops = {
 	.get_ibus_adc = mt6370_get_ibus,
 };
 
+static ssize_t ibat_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mt6370_pmu_charger_data *chg_data = dev_get_drvdata(dev);
+	int adc_ibat = 0, ret;
+	ret = mt6370_get_adc(chg_data, MT6370_ADC_IBAT, &adc_ibat);
+	if (ret < 0) {
+		dev_info(chg_data->dev, "%s: get adc failed\n", __func__);
+	}
+	return sprintf(buf, "%d\n", adc_ibat / 1000);
+}
+static const DEVICE_ATTR_RO(ibat);
+
+static ssize_t poweroff_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	int32_t tmp = 0;
+
+	if (kstrtoint(buf, 10, &tmp) < 0) {
+		dev_notice(dev, "parsing number fail\n");
+		return -EINVAL;
+	}
+	if (tmp != 5526789)
+		return -EINVAL;
+	kernel_power_off();
+
+	return count;
+}
+static const DEVICE_ATTR_WO(poweroff);
+
 static ssize_t shipping_mode_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
@@ -4732,6 +4843,16 @@ static int mt6370_pmu_charger_probe(struct platform_device *pdev)
 		dev_notice(&pdev->dev, "create shipping attr fail\n");
 		goto err_devfs;
 	}
+	ret = device_create_file(chg_data->dev, &dev_attr_poweroff);
+	if (ret < 0) {
+		dev_notice(&pdev->dev, "create poweroff attr fail\n");
+		goto err_devfs;
+	}
+	ret = device_create_file(chg_data->dev, &dev_attr_ibat);
+	if (ret < 0) {
+		dev_notice(&pdev->dev, "create ibat attr fail\n");
+		goto err_devfs;
+	}
 
 	/* power supply register */
 	memcpy(&chg_data->psy_desc,
@@ -4811,6 +4932,7 @@ err_psy_get_phandle:
 err_register_otg:
 err_register_psy:
 	device_remove_file(chg_data->dev, &dev_attr_shipping_mode);
+	device_remove_file(chg_data->dev, &dev_attr_ibat);
 err_devfs:
 	charger_device_unregister(chg_data->ls_dev);
 err_register_ls_dev:
@@ -4837,6 +4959,7 @@ static int mt6370_pmu_charger_remove(struct platform_device *pdev)
 
 	if (chg_data) {
 		device_remove_file(chg_data->dev, &dev_attr_shipping_mode);
+		device_remove_file(chg_data->dev, &dev_attr_ibat);
 		charger_device_unregister(chg_data->ls_dev);
 		charger_device_unregister(chg_data->chg_dev);
 		mutex_destroy(&chg_data->ichg_access_lock);

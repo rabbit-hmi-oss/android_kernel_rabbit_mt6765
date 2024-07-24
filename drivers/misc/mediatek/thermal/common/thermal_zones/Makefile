@@ -243,14 +243,20 @@ ifneq (,$(filter $(CONFIG_MTK_PLATFORM), "mt6853"))
 obj-$(CONFIG_THERMAL) += mtk_ts_battery.o
 
 obj-$(CONFIG_THERMAL) += mtk_ts_bts.o
+ifeq (,$(findstring tb8791p2, $(CONFIG_ARCH_MTK_PROJECT)))
 obj-$(CONFIG_THERMAL) += mtk_ts_btsmdpa.o
 obj-$(CONFIG_THERMAL) += mtk_ts_btsnrpa.o
+endif
 
 obj-$(CONFIG_THERMAL) += mtk_ts_cpu_noBankv2.o
 obj-$(CONFIG_THERMAL) += mtk_ts_pa.o
 obj-$(CONFIG_THERMAL) += mtk_ts_pa_thput.o
 obj-$(CONFIG_THERMAL) += mtk_ts_pmic.o
+ifneq (,$(findstring tb8791p2, $(CONFIG_ARCH_MTK_PROJECT)))
+obj-$(CONFIG_THERMAL) += mtk_ts_btscharger.o
+else
 obj-$(CONFIG_THERMAL) += mtk_ts_charger_v1.o
+endif
 #obj-$(CONFIG_THERMAL) += mtk_ts_charger2.o
 
 

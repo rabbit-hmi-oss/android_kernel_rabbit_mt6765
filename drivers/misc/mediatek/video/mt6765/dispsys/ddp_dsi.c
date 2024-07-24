@@ -201,39 +201,8 @@ unsigned int data_lane1[2] = { 0 }; /* MIPITX_DSI_DATA_LANE1 */
 unsigned int data_lane2[2] = { 0 }; /* MIPITX_DSI_DATA_LANE2 */
 unsigned int data_lane3[2] = { 0 }; /* MIPITX_DSI_DATA_LANE3 */
 
-unsigned int mipitx_impedance_backup[50];
+unsigned int mipitx_impedance_backup[5];
 atomic_t dsi_idle_flg = ATOMIC_INIT(0);
-
-static void refill_mipitx_impedance(void *cmdq)
-{
-	int i = 0, j = 0, cnt = 0;
-	unsigned long addr = DSI_PHY_REG[0] + 0x100;
-
-	for (i = 0; i < 5; i++) {
-		for (j = 0; j < 4; j++) {
-			DSI_OUTREG32(cmdq, addr,
-				mipitx_impedance_backup[cnt]);
-			cnt++;
-			addr += 0x4;
-		}
-		addr += 0x4; /* 0x114 - 0x110 */
-		for (j = 0; j < 4; j++) {
-			DSI_OUTREG32(cmdq, addr,
-				mipitx_impedance_backup[cnt]);
-			cnt++;
-			addr += 0x4;
-		}
-		addr += 0xA4; /* 0x1C8 - 0x124 */
-		DSI_OUTREG32(cmdq, addr,
-			mipitx_impedance_backup[cnt]);
-		cnt++;
-		addr += 0x4; /* 0x1CC - 0x1C8 */
-		DSI_OUTREG32(cmdq, addr,
-			mipitx_impedance_backup[cnt]);
-		cnt++;
-		addr += 0x34; /* 0x200 - 0x1CC */
-	}
-}
 
 atomic_t PMaster_enable = ATOMIC_INIT(0);
 static int DSI_MODULE_BEGIN(enum DISP_MODULE_ENUM module)
@@ -1863,6 +1832,8 @@ static void DSI_DPHY_clk_setting(enum DISP_MODULE_ENUM module,
 	unsigned int prediv = 0;
 	unsigned int delta1 = 2; /* Delta1 is SSC range, default is 0%~-5% */
 	unsigned int pdelta1 = 0;
+	unsigned long addr = 0;
+
 	enum MIPITX_PHY_LANE_SWAP *swap_base;
 	enum MIPITX_PAD_VALUE pad_mapping[MIPITX_PHY_LANE_NUM] = {
 					PAD_D0P_V, PAD_D1P_V, PAD_D2P_V,
@@ -2001,7 +1972,19 @@ static void DSI_DPHY_clk_setting(enum DISP_MODULE_ENUM module,
 		}
 	}
 
-	refill_mipitx_impedance(NULL);
+	if (disp_helper_get_stage() == DISP_HELPER_STAGE_NORMAL) {
+		/* re-fill mipitx impendance */
+		addr = DSI_PHY_REG[0]+0x100;
+		for (i = 0; i < 5; i++) {
+			for (j = 0; j < 10; j++) {
+				MIPITX_OUTREG32(addr,
+					((mipitx_impedance_backup[i])>>j)&0x1);
+				addr += 0x4;
+			}
+			/* 0xD8 = 0x300 - 0x228*/
+			addr += 0xD8;
+		}
+	}
 
 	/* MIPI INIT */
 	for (i = DSI_MODULE_BEGIN(module); i <= DSI_MODULE_END(module); i++) {
@@ -4585,14 +4568,14 @@ int DSI_Send_ROI(enum DISP_MODULE_ENUM module, void *handle, unsigned int x,
 
 static void lcm_set_reset_pin(UINT32 value)
 {
-	if (!_is_lcm_cmd_mode(DISP_MODULE_DSI0)) {
-		DSI_OUTREG32(NULL, DISP_REG_CONFIG_MMSYS_LCM_RST_B, value);
-	} else {
+	//if (!_is_lcm_cmd_mode(DISP_MODULE_DSI0)) {
+	//	DSI_OUTREG32(NULL, DISP_REG_CONFIG_MMSYS_LCM_RST_B, value);
+	//} else {
 		if (value)
 			disp_dts_gpio_select_state(DTS_GPIO_STATE_LCM_RST_OUT1);
 		else
 			disp_dts_gpio_select_state(DTS_GPIO_STATE_LCM_RST_OUT0);
-	}
+	//}
 }
 
 static void lcm1_set_reset_pin(UINT32 value)
@@ -5040,15 +5023,18 @@ int ddp_dsi_init(enum DISP_MODULE_ENUM module, void *cmdq)
 	}
 #endif
 
-	/* backup mipitx impedance0 which is inited in LK*/
-	addr = DSI_PHY_REG[0]+0x100;
-	for (i = 0; i < 5; i++) {
-		for (j = 0; j < 10; j++) {
-			mipitx_impedance_backup[i] |= ((INREG32(addr))<<j);
-			addr += 0x4;
+	if (disp_helper_get_stage() == DISP_HELPER_STAGE_NORMAL) {
+		/* backup mipitx impedance0 which is inited in LK*/
+		addr = DSI_PHY_REG[0]+0x100;
+		for (i = 0; i < 5; i++) {
+			for (j = 0; j < 10; j++) {
+				mipitx_impedance_backup[i] |=
+				((INREG32(addr))<<j);
+				addr += 0x4;
+			}
+			/* 0xD8 = 0x300 - 0x228*/
+			addr += 0xD8;
 		}
-		/* 0xD8 = 0x300 - 0x228*/
-		addr += 0xD8;
 	}
 
 	return DSI_STATUS_OK;

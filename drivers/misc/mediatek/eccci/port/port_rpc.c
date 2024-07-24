@@ -23,9 +23,12 @@
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
+#include <linux/arm-smccc.h>
+#include <linux/soc/mediatek/mtk_sip_svc.h>
 #include "ccci_config.h"
 #include "ccci_common_config.h"
 
+#define TRNG_MAGIC		0x74726e67
 #ifdef FEATURE_INFORM_NFC_VSIM_CHANGE
 #include <mach/mt6605.h>
 #endif
@@ -1146,6 +1149,33 @@ static void ccci_rpc_work_helper(struct port_t *port, struct rpc_pkt *pkt,
 		CCCI_NORMAL_LOG(md_id, RPC,
 			"enter QUERY CARD_TYPE operation in ccci_rpc_work\n");
 		break;
+	case IPC_RPC_TRNG:
+		{
+			struct arm_smccc_res res = {0};
+
+			if (pkt_num != 1) {
+				CCCI_ERROR_LOG(md_id, RPC,
+					"invalid parameter for [0x%X]: pkt_num=%d!\n",
+					p_rpc_buf->op_id, pkt_num);
+				tmp_data[0] = FS_PARAM_ERROR;
+				pkt_num = 0;
+				pkt[pkt_num].len = sizeof(unsigned int);
+				pkt[pkt_num++].buf = (void *)&tmp_data[0];
+				pkt[pkt_num].len = sizeof(unsigned int);
+				pkt[pkt_num++].buf = (void *)&tmp_data[0];
+				break;
+			}
+			arm_smccc_smc(MTK_SIP_KERNEL_GET_RND,
+				TRNG_MAGIC, 0, 0, 0, 0, 0, 0, &res);
+			pkt_num = 0;
+			tmp_data[0] = 0;
+			tmp_data[1] = res.a0;
+			pkt[pkt_num].len = sizeof(unsigned int);
+			pkt[pkt_num++].buf = (void *)&tmp_data[0];
+			pkt[pkt_num].len = sizeof(unsigned int);
+			pkt[pkt_num++].buf = (void *)&tmp_data[1];
+			break;
+		}
 	case IPC_RPC_IT_OP:
 		{
 			int i;

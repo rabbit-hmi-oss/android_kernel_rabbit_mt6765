@@ -9,6 +9,7 @@ struct mtk_extcon_info {
 	struct usb_role_switch *role_sw;
 	unsigned int c_role; /* current data role */
 	struct workqueue_struct *extcon_wq;
+	bool support_u3;
 	struct regulator *vbus;
 	struct gpio_desc *id_gpiod;
 	unsigned int vbus_vol;
@@ -19,6 +20,7 @@ struct mtk_extcon_info {
 	struct power_supply *usb_psy;
 	struct notifier_block psy_nb;
 	struct delayed_work wq_detcable;
+	struct delayed_work snd_usb_device_det_wk;
 #ifdef CONFIG_TCPC_CLASS
 	struct tcpc_device *tcpc_dev;
 	struct notifier_block tcpc_nb;

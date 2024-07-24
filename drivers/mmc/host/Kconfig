@@ -985,6 +985,15 @@ config MMC_SDHCI_BRCMSTB
 
 	  If unsure, say Y.
 
+config MMC_MTK_SDIO
+	tristate "MediaTek SDIO Card Interface support"
+	depends on HAS_DMA
+	help
+	  This selects the MediaTek(R) SDIO Interface.
+	  If you have a machine with a integrated SDIO card reader, say Y or M here.
+	  This is needed if support for any SDIO devices is required.
+	  If unsure, say N.
+
 config MMC_SDHCI_XENON
 	tristate "Marvell Xenon eMMC/SD/SDIO SDHCI driver"
 	depends on MMC_SDHCI_PLTFM

@@ -182,7 +182,8 @@
 			     <INT_BAT_H IRQ_TYPE_LEVEL_HIGH>,
 			     <INT_BAT_L IRQ_TYPE_LEVEL_HIGH>,
 			     <INT_FG_CUR_H IRQ_TYPE_LEVEL_HIGH>,
-			     <INT_FG_CUR_L IRQ_TYPE_LEVEL_HIGH>;
+			     <INT_FG_CUR_L IRQ_TYPE_LEVEL_HIGH>,
+			     <INT_CHRDET_EDGE IRQ_TYPE_EDGE_BOTH>;
 		interrupt-names = "pwrkey",
 				  "pwrkey_r",
 				  "homekey",
@@ -190,7 +191,8 @@
 				  "bat_h",
 				  "bat_l",
 				  "fg_cur_h",
-				  "fg_cur_l";
+				  "fg_cur_l",
+				  "chrdet_edge";
 	};
 
 	pmic_auxadc: mt635x-auxadc {

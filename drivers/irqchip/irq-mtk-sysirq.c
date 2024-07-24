@@ -73,6 +73,7 @@ static struct irq_chip mtk_sysirq_chip = {
 	.irq_set_type		= mtk_sysirq_set_type,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static int mtk_sysirq_domain_translate(struct irq_domain *d,
@@ -80,6 +81,11 @@ static int mtk_sysirq_domain_translate(struct irq_domain *d,
 				       unsigned long *hwirq,
 				       unsigned int *type)
 {
+	if (!fwspec || !hwirq || !type) {
+		pr_info("%s invalid args", __func__);
+		return -EINVAL;
+	}
+
 	if (is_of_node(fwspec->fwnode)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
@@ -101,8 +107,16 @@ static int mtk_sysirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	int i;
 	irq_hw_number_t hwirq;
-	struct irq_fwspec *fwspec = arg;
-	struct irq_fwspec gic_fwspec = *fwspec;
+	struct irq_fwspec *fwspec;
+	struct irq_fwspec gic_fwspec;
+
+	if (!arg) {
+		pr_info("%s invalid args", __func__);
+		return -EINVAL;
+	}
+
+	fwspec = (struct irq_fwspec *)arg;
+	gic_fwspec = *fwspec;
 
 	if (fwspec->param_count != 3)
 		return -EINVAL;

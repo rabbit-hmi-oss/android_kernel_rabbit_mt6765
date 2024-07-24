@@ -512,7 +512,7 @@ static int __maybe_unused mt6360_is_dcd_tout_enable(
 
 #if defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6893) \
 	|| defined(CONFIG_MACH_MT6885) || defined(CONFIG_MACH_MT6785) \
-	|| defined(CONFIG_MACH_MT6853)
+	|| defined(CONFIG_MACH_MT6853) || defined(CONFIG_MACH_MT6873)
 bool is_usb_rdy(struct device *dev)
 {
 	struct device_node *node;
@@ -553,7 +553,7 @@ static int __mt6360_enable_usbchgen(struct mt6360_pmu_chg_info *mpci, bool en)
 		for (i = 0; i < max_wait_cnt; i++) {
 #if defined(CONFIG_MACH_MT6877) || defined(CONFIG_MACH_MT6893) \
 	|| defined(CONFIG_MACH_MT6885) || defined(CONFIG_MACH_MT6785) \
-	|| defined(CONFIG_MACH_MT6853)
+	|| defined(CONFIG_MACH_MT6853) || defined(CONFIG_MACH_MT6873)
 			if (is_usb_rdy(mpci->dev))
 				break;
 #else
@@ -897,19 +897,6 @@ static int mt6360_get_min_ichg(struct charger_device *chg_dev, u32 *uA)
 	return 0;
 }
 
-static int mt6360_set_cv(struct charger_device *chg_dev, u32 uV)
-{
-	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
-	u8 data = 0;
-
-	dev_dbg(mpci->dev, "%s: cv = %d\n", __func__, uV);
-	data = mt6360_trans_cv_sel(uV);
-	return mt6360_pmu_reg_update_bits(mpci->mpi,
-					  MT6360_PMU_CHG_CTRL4,
-					  MT6360_MASK_VOREG,
-					  data << MT6360_SHFT_VOREG);
-}
-
 static int mt6360_get_cv(struct charger_device *chg_dev, u32 *uV)
 {
 	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
@@ -921,6 +908,47 @@ static int mt6360_get_cv(struct charger_device *chg_dev, u32 *uV)
 	ret = ((u32)ret & MT6360_MASK_VOREG) >> MT6360_SHFT_VOREG;
 	*uV = 3900000 + (ret * 10000);
 	return 0;
+}
+
+static int mt6360_set_cv(struct charger_device *chg_dev, u32 uV)
+{
+	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
+	u8 data = 0;
+	u32 reg_data = 0;
+	int ret = 0;
+
+	dev_dbg(mpci->dev, "%s: cv = %d\n", __func__, uV);
+	ret = mt6360_get_cv(chg_dev, &reg_data);
+	if (ret < 0 || (uV == reg_data)) /* error or same */
+		return ret;
+
+	ret = mt6360_enable_hidden_mode(mpci->chg_dev, true);
+	if (ret < 0)
+		return ret;
+
+	reg_data = mt6360_pmu_reg_read(mpci->mpi, MT6360_PMU_CHG_HIDDEN_CTRL22);
+	if (reg_data < 0)
+		goto out;
+	/* set reg0x45[6:5]=11 */
+	ret = mt6360_pmu_reg_set_bits(mpci->mpi, MT6360_PMU_CHG_HIDDEN_CTRL22,
+				      MT6360_MASK_BATOVP_LVL);
+	if (ret < 0)
+		goto out;
+
+	data = mt6360_trans_cv_sel(uV);
+	ret = mt6360_pmu_reg_update_bits(mpci->mpi,
+					 MT6360_PMU_CHG_CTRL4,
+					 MT6360_MASK_VOREG,
+					 data << MT6360_SHFT_VOREG);
+	if (ret < 0)
+		goto out;
+
+	mdelay(5);
+	ret = mt6360_pmu_reg_write(mpci->mpi, MT6360_PMU_CHG_HIDDEN_CTRL22,
+				   reg_data);
+out:
+	mt6360_enable_hidden_mode(mpci->chg_dev, false);
+	return ret;
 }
 
 static int mt6360_toggle_aicc(struct mt6360_pmu_chg_info *mpci)

@@ -34,6 +34,8 @@
 #define IOMEM(x)        ((void __force __iomem *)(x))
 #define GICD_IROUTER                      0x6000
 #define GICD_IROUTER_SPI_MODE_ANY	  (1U << 31)
+#define GICD_TYPER			  (0x0004)
+#define MAX_SPI_INTID			  (1019)
 /* for cirq use */
 void __iomem *GIC_DIST_BASE;
 #ifdef CONFIG_MTK_SYSIRQ
@@ -43,6 +45,7 @@ static u32 reg_len_pol0;
 #endif
 void __iomem *MCUSYS_BASE_SWMODE;
 static void __iomem *GIC_REDIST_BASE;
+static u32 num_gic_irqs;
 
 unsigned int __attribute__((weak)) irq_sw_mode_support(void)
 {
@@ -351,6 +354,11 @@ void mt_irq_set_pending_hw(unsigned int hwirq)
 	void __iomem *base;
 	u32 bit = 1 << (hwirq % 32);
 
+	if (hwirq > num_gic_irqs) {
+		pr_notice("%s invalid hwirq %d\n", __func__, hwirq);
+		return;
+	}
+
 	if (hwirq >= 32) {
 		base = GIC_DIST_BASE;
 	} else {
@@ -533,7 +541,7 @@ void _mt_irq_set_polarity(unsigned int hwirq, unsigned int polarity)
 	u32 offset, reg, value;
 	void __iomem *base = INT_POL_CTL0;
 
-	if (hwirq < 32) {
+	if (hwirq < 32 || hwirq > num_gic_irqs) {
 		pr_notice("Fail to set polarity of interrupt %d\n", hwirq);
 		return;
 	}
@@ -691,17 +699,23 @@ int __init mt_gic_ext_init(void)
 	}
 
 	GIC_DIST_BASE = of_iomap(node, 0);
-	if (IS_ERR(GIC_DIST_BASE))
+	if (IS_ERR(GIC_DIST_BASE)) {
+		pr_notice("[gic_ext] GIC DIST map failed\n");
 		return -EINVAL;
+	}
 
 	GIC_REDIST_BASE = of_iomap(node, 1);
-	if (IS_ERR(GIC_REDIST_BASE))
+	if (IS_ERR(GIC_REDIST_BASE)) {
+		pr_notice("[gic_ext] GIC REDIST map failed\n");
 		return -EINVAL;
+	}
 
 #ifdef CONFIG_MTK_SYSIRQ
 	INT_POL_CTL0 = of_iomap(node, 2);
-	if (IS_ERR(INT_POL_CTL0))
+	if (IS_ERR(INT_POL_CTL0)) {
+		pr_notice("[gic_ext] MTSYSIRQ  map failed\n");
 		return -EINVAL;
+	}
 
 	/* if INT_POL_CTL1 get NULL,
 	 * only means no extra polarity register,
@@ -715,7 +729,11 @@ int __init mt_gic_ext_init(void)
 #endif
 
 	irq_sw_mode_init();
-	pr_notice("### gic-v3 init done. ###\n");
+	num_gic_irqs = readl_relaxed(IOMEM(GIC_DIST_BASE + GICD_TYPER)) & 0x1f;
+	num_gic_irqs = 32 * (num_gic_irqs + 1) - 1;
+	if (num_gic_irqs > MAX_SPI_INTID)
+		num_gic_irqs = MAX_SPI_INTID;
+	pr_notice("### gic-v3 init done. gic_irqs: %d ###\n", num_gic_irqs);
 
 	return 0;
 }

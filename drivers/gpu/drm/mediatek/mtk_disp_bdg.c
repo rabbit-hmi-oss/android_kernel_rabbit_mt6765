@@ -48,7 +48,7 @@ struct DSI_TX_PHY_TIMCON2_REG timcon2;
 struct DSI_TX_PHY_TIMCON3_REG timcon3;
 unsigned int bg_tx_data_phy_cycle = 0, tx_data_rate = 0, ap_tx_data_rate = 0;
 unsigned int hsa_byte = 0, hbp_byte = 0, hfp_byte = 0, bllp_byte = 0, bg_tx_line_cycle = 0;
-unsigned int dsc_en;
+unsigned int dsc_en = 1;
 unsigned int mt6382_init;
 unsigned int need_6382_init;
 unsigned int bdg_tx_mode;
@@ -831,7 +831,7 @@ int bdg_mipi_tx_dphy_clk_setting(enum DISP_BDG_ENUM module,
 			 swap_base[MIPITX_PHY_LANE_CK],
 			 swap_base[MIPITX_PHY_LANE_RX]);
 
-		if (unlikely(params->lane_swap_en)) {
+		if (unlikely(params->bdg_lane_swap_en)) {
 			DDPINFO("MIPITX Lane Swap Enabled for DSI Port %d\n",
 				 i);
 			DDPINFO(
@@ -1097,6 +1097,49 @@ int bdg_mipi_tx_dphy_clk_setting(enum DISP_BDG_ENUM module,
 
 	return 0;
 }
+int bdg_tx_data_phy_cycle_calc(struct mtk_dsi *dsi)
+{
+	u32 ui, cycle_time;
+
+	dsi->bdg_data_rate = mtk_dsi_default_rate(dsi);
+	tx_data_rate = dsi->bdg_data_rate;
+	ui = 1000 / tx_data_rate;
+	cycle_time = 8000 / tx_data_rate;
+
+	pr_info("%s, tx_data_rate=%d, cycle_time=%d, ui=%d\n",
+		__func__, tx_data_rate, cycle_time, ui);
+
+	/* lpx >= 50ns (spec) */
+	/* lpx = 60ns */
+	timcon0.LPX = NS_TO_CYCLE_BDG(60, cycle_time);
+	if (timcon0.LPX < 2)
+		timcon0.LPX = 2;
+
+	/* hs_prep = 40ns+4*UI ~ 85ns+6*UI (spec) */
+	/* hs_prep = 64ns+5*UI */
+	timcon0.HS_PRPR = NS_TO_CYCLE_BDG((64 + 5 * ui), cycle_time) + 1;
+
+	/* hs_zero = (200+10*UI) - hs_prep */
+	timcon0.HS_ZERO = NS_TO_CYCLE_BDG((200 + 10 * ui), cycle_time);
+	timcon0.HS_ZERO = timcon0.HS_ZERO > timcon0.HS_PRPR ?
+			timcon0.HS_ZERO - timcon0.HS_PRPR : timcon0.HS_ZERO;
+	if (timcon0.HS_ZERO < 1)
+		timcon0.HS_ZERO = 1;
+
+	/* hs_exit > 100ns (spec) */
+	/* hs_exit = 120ns */
+	/* timcon1.DA_HS_EXIT = NS_TO_CYCLE_BDG(120, cycle_time); */
+	/* hs_exit = 2*lpx */
+	timcon1.DA_HS_EXIT = 2 * timcon0.LPX;
+
+	bg_tx_data_phy_cycle = (timcon1.DA_HS_EXIT + 1) + timcon0.LPX +
+					timcon0.HS_PRPR + timcon0.HS_ZERO + 1;
+
+	DDPINFO("%s,bg_tx_data_phy_cycle=%d,LPX=%d,HS_PRPR=%d,HS_ZERO=%d,DA_HS_EXIT=%d\n",
+		__func__, bg_tx_data_phy_cycle, timcon0.LPX, timcon0.HS_PRPR,
+		 timcon0.HS_ZERO, timcon1.DA_HS_EXIT);
+	return 0;
+}
 
 int bdg_tx_phy_config(enum DISP_BDG_ENUM module,
 			void *cmdq, struct mtk_dsi *dsi)
@@ -1327,9 +1370,9 @@ int bdg_tx_ps_ctrl(enum DISP_BDG_ENUM module,
 
 	if (dsc_en) {
 		ps_sel = PACKED_COMPRESSION;
-		width = (width + 2) / 3;
-	}
-	ps_wc = (width * bpp) / 8;
+		ps_wc = width;
+	} else
+		ps_wc = (width * bpp) / 8;
 	DDPINFO(
 		"%s, DSI_WIDTH=%d, DSI_HEIGHT=%d, ps_sel=%d, ps_wc=%d\n",
 		__func__, width, height, ps_sel, ps_wc);
@@ -1348,7 +1391,7 @@ int bdg_tx_ps_ctrl(enum DISP_BDG_ENUM module,
 
 		BDG_OUTREGBIT(cmdq, struct DSI_TX_SIZE_CON_REG,
 				TX_REG[i]->DSI_TX_SIZE_CON, DSI_WIDTH,
-				width * line_back_to_LP);
+				(width + 2) / 3 * line_back_to_LP);
 		BDG_OUTREGBIT(cmdq, struct DSI_TX_SIZE_CON_REG,
 				TX_REG[i]->DSI_TX_SIZE_CON, DSI_HEIGHT,
 				height / line_back_to_LP);
@@ -1440,19 +1483,16 @@ int bdg_tx_buf_rw_set(enum DISP_BDG_ENUM module,
 	width = mtk_dsi_get_virtual_width(dsi, dsi->encoder.crtc);
 	height = mtk_dsi_get_virtual_heigh(dsi, dsi->encoder.crtc);
 
-	if (dsc_en)
-		width = (width + 2) / 3;
-
 	if (tmp == 1 && (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) == 0) {
-		if ((width * 3 % 9) == 0)
-			rw_times = (width * 3 / 9) * height;
+		if ((width % 9) == 0)
+			rw_times = (width / 9) * height;
 		else
-			rw_times = (width * 3 / 9 + 1) * height;
+			rw_times = (width / 9 + 1) * height;
 	} else {
-		if ((width * height * 3 % 9) == 0)
-			rw_times = width * height * 3 / 9;
+		if ((width * height % 9) == 0)
+			rw_times = width * height / 9;
 		else
-			rw_times = width * height * 3 / 9 + 1;
+			rw_times = width * height / 9 + 1;
 	}
 
 	DDPINFO(
@@ -3777,7 +3817,8 @@ int bdg_dsc_init(enum DISP_BDG_ENUM module,
 	BDG_OUTREG32(cmdq, DSC_REG->DISP_DSC_BUF_SIZE,
 		params->chunk_size * params->slice_height);
 
-	pad_num = (params->chunk_size + 2) / 3 * 3 - params->chunk_size;
+	pad_num = (params->chunk_size * (params->slice_mode + 1) + 2) / 3 * 3
+		- params->chunk_size * (params->slice_mode + 1);
 	BDG_OUTREG32(cmdq, DSC_REG->DISP_DSC_PAD, pad_num);
 
 	if (params->dsc_cfg)
@@ -5702,7 +5743,7 @@ void bdg_dsi_porch_setting(enum DISP_BDG_ENUM module, void *handle,
 	}
 
 	if (dyn->hfp)
-		BDG_OUTREG32(handle, TX_REG[0]->DSI_TX_HSA_WC, hfp);
+		BDG_OUTREG32(handle, TX_REG[0]->DSI_TX_HFP_WC, hfp);
 	else if (dyn->hsa)
 		BDG_OUTREG32(handle, TX_REG[0]->DSI_TX_HSA_WC, hsa);
 	else if (dyn->hbp)

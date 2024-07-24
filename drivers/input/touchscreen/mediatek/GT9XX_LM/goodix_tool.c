@@ -856,8 +856,9 @@ static ssize_t hotknot_write(struct file *filp, const char __user *buff,
 			return -EINVAL;
 		}
 		memset(cmd_head2.data, 0, cmd_head2.data_len + 1);
-		memcpy(cmd_head2.data, &buff[CMD_HEAD_LENGTH],
-		       cmd_head2.data_len);
+		ret = copy_from_user(cmd_head2.data, &buff[CMD_HEAD_LENGTH], cmd_head2.data_len);
+		if (ret)
+			GTP_ERROR("copy_from_user failed.");
 		GTP_DEBUG("update firmware, filename: %s", cmd_head2.data);
 
 	}

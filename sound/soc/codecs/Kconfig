@@ -1436,6 +1436,16 @@ config SND_SOC_RT5512
 	  multi-band DRC, equalizer function. It would
 	  be set to yes if device with RT5512 on it.
 
+config SND_SMARTPA_AW883XX
+	tristate "SoC Audio for awinic aw883xx series"
+	depends on I2C
+	help
+	  This option enables support for aw883xx series
+	  Smart PA. It is a Smart power amplifier
+	  which contain speaker protection, multi-band
+	  DRC, equalizer function. It would be set to
+	  yes if device with aw883xx on it.
+
 config SND_SOC_SMARTPAINFO
 	tristate "smartpa info"
 	depends on I2C

@@ -113,7 +113,7 @@
 			drive-strength = <3>;
 		};
 
-		pins_insert {
+		sdcard_pins_insert: pins_insert {
 			pinmux = <PINMUX_GPIO18__FUNC_GPIO18>;
 			bias-pull-up;
 		};

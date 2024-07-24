@@ -1,0 +1,5 @@
+---- hyn_release_sysfs 匹配 (4 in 3 文件) ----
+Hynitron_common.h (d:\git\document_project\a驱动模板\hyn_new_driver\mtk):extern void hyn_release_sysfs(struct i2c_client *client);
+Hynitron_core.c (d:\git\document_project\a驱动模板\hyn_new_driver\mtk):	hyn_release_sysfs(hyn_ts_data->client);
+Hynitron_core.c (d:\git\document_project\a驱动模板\hyn_new_driver\mtk):    hyn_release_sysfs(client);
+Hynitron_tool_debug.c (d:\git\document_project\a驱动模板\hyn_new_driver\mtk):void hyn_release_sysfs(struct i2c_client *client)

@@ -28,6 +28,12 @@
 
 #endif
 
+#define SNPRINTF(args...)				\
+	do {						\
+		if (snprintf(args) < 0)			\
+			pr_notice("snprintf error\n");	\
+	} while (0)
+
 /**
  * VCU (Video Communication/Controller Unit)
  * is a tiny processor controlling video hardware
@@ -290,5 +296,6 @@ extern void venc_encode_pmqos_gce_end(void *ctx_end,
 extern void vdec_check_release_lock(void *ctx_check);
 extern void mtk_vcodec_gce_timeout_dump(void *ctx);
 int vcu_set_log(const char *val);
+int vcu_get_log(char *val, unsigned int val_len);
 
 #endif /* _MTK_VCU_H */

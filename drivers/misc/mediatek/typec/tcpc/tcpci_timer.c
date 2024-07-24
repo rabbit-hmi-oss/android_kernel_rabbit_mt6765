@@ -1237,6 +1237,10 @@ void tcpc_enable_timer(struct tcpc_device *tcpc, uint32_t timer_id)
 
 	tout = tcpc_timer_timeout[timer_id];
 
+	if (tcpc->typec_state == /*typec_try_snk*/11) {
+		printk("mt6370 pd_dbg_info [%s] state match delaytime fixed from %d\n", __func__, tout);
+		tout *= 10;
+	}
 #ifdef CONFIG_USB_PD_RANDOM_FLOW_DELAY
 	if (timer_id == PD_TIMER_DFP_FLOW_DELAY ||
 		timer_id == PD_TIMER_UFP_FLOW_DELAY)

@@ -1275,6 +1275,14 @@ page_owner=on loop.max_part=7";
 		efuse_segment: segment@78 {
 			reg = <0x78 0x4>;
 		};
+
+		u3_phy_data: u3_phy_data {
+			reg = <0x1ac 0x4>;
+		};
+
+		u2_phy_data: u2_phy_data {
+			reg = <0x1b0 0x4>;
+		};
 	};
 
 	srclken@1000f800 {
@@ -1645,7 +1653,7 @@ page_owner=on loop.max_part=7";
 			<0 0>;
 
 		vcc-supply = <&mt_pmic_vemc_ldo_reg>;
-		vccq2-supply = <&mt_pmic_vufs_ldo_reg>;
+		vcc-fixed-regulator;
 
 		resets = <&infracfg_rst 0>, <&infracfg_rst 1>,
 				 <&infracfg_rst 2>;
@@ -2395,12 +2403,21 @@ page_owner=on loop.max_part=7";
 			mediatek,host-eye-term = <6>; /* 0~7 */
 			mediatek,host-eye-rev6 = <1>; /* 0~3 */
 			mediatek,host-eye-disc = <7>; /* 0~8 */
+			mediatek,rx-sqth = <2>;
+			mediatek,rev4 = <1>;
+			mediatek,eq-leq-shift = <1>;
+			nvmem-cells = <&u2_phy_data>;
+			nvmem-cell-names = "intr_cal";
+			nvmem-cell-masks = <0x1f>;
 			status = "okay";
 		};
 
 		u3port0: usb3-phy0@11e40700 {
 			reg = <0 0x11e40700 0 0x900>;
 			#phy-cells = <1>;
+			nvmem-cells = <&u3_phy_data>, <&u3_phy_data>, <&u3_phy_data>;
+			nvmem-cell-names = "iext_intr_ctrl", "rx_impsel", "tx_impsel";
+			nvmem-cell-masks = <0x3f0000 0x1f00 0x1f>;
 			status = "okay";
 		};
 	};
@@ -6560,6 +6577,11 @@ page_owner=on loop.max_part=7";
 	};
 	/* NFC end */
 
+	mtee_svp: mtee_svp {
+		compatible = "medaitek,svp";
+	};
+	/* svp end */
+
 	typec_mux_switch: typec_mux_switch {
 		compatible = "mediatek,typec_mux_switch";
 		status = "okay";
@@ -6826,11 +6848,6 @@ page_owner=on loop.max_part=7";
 
 #include "mediatek/mt6359p.dtsi"
 #include "mediatek/mt6853-clkitg.dtsi"
-
-&mt_pmic_vemc_ldo_reg {
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
-};
 
 &spmi_bus {
 	grpid = <11>;
@@ -7202,6 +7219,7 @@ page_owner=on loop.max_part=7";
 			wd,sbu_ph_ubound2_c2c = <3800>;	/* mV */
 			wd,sbu_aud_ubound = <1600>;	/* mV */
 			switch = <&typec_mux_switch>;
+			bootmode = <&chosen>;
 			pd-data {
 				/*
 				 * VSAFE5V = 0, MAX_POWER = 1, CUSTOM = 2,

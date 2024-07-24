@@ -54,6 +54,13 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_AW37004
+	tristate "AW37004 regulator driver"
+	help
+	    This option enables support for the aw37004 power connected
+	    through I2C. Say Y to enable support for the aw37004
+
+
 config REGULATOR_PROXY_CONSUMER
 	bool "Boot time regulator proxy consumer support"
 	help

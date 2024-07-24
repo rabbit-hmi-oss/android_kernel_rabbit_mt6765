@@ -540,10 +540,10 @@ static int tpd_probe(struct platform_device *pdev)
 		set_bit(INPUT_PROP_DIRECT, tpd->dev->propbit);
 		input_set_abs_params(tpd->dev,
 			ABS_MT_POSITION_X, 0,
-			tpd_dts_data.lcm_resolution[0], 0, 0);
+			tpd_dts_data.tpd_resolution[0], 0, 0);
 		input_set_abs_params(tpd->dev,
 			ABS_MT_POSITION_Y, 0,
-			tpd_dts_data.lcm_resolution[1], 0, 0);
+			tpd_dts_data.tpd_resolution[1], 0, 0);
 		input_set_abs_params(tpd->dev,
 			ABS_MT_TOUCH_MAJOR, 0, 100, 0, 0);
 		input_set_abs_params(tpd->dev,

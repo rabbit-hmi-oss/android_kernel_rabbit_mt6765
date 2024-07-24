@@ -164,6 +164,7 @@ struct mmc_host_ops {
 					 int card_drv, int *drv_type);
 	void	(*hw_reset)(struct mmc_host *host);
 	void	(*card_event)(struct mmc_host *host);
+	void	(*remove_bad_sdcard)(struct mmc_host *host);
 
 	/*
 	 * Optional callback to support controllers with HW issues for multiple
@@ -455,6 +456,7 @@ struct mmc_host {
 #define MMC_CAP2_CQE		(1 << 23)	/* Has eMMC command queue engine */
 #define MMC_CAP2_CQE_DCMD	(1 << 24)	/* CQE can issue a direct command */
 #define MMC_CAP2_AVOID_3_3V	(1 << 25)	/* Host must negotiate down from 3.3V */
+#define MMC_CAP2_NMCARD		(1 << 26)
 #define MMC_CAP2_CRYPTO		(1 << 27)	/* Host supports inline encryption */
 #define MMC_CAP2_SWCQ		(1 << 30)	/* CAP_SW_CMDQ */
 

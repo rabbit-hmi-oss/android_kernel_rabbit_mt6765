@@ -349,7 +349,7 @@ int kbase_csf_alloc_command_stream_user_pages(struct kbase_context *kctx,
 
 	ret = kbase_mem_pool_alloc_pages(
 				&kctx->mem_pools.small[KBASE_MEM_GROUP_CSF_IO],
-				num_pages, queue->phys, false);
+				num_pages, queue->phys, false, kctx->task);
 
 	if (ret != num_pages)
 		goto phys_alloc_failed;
@@ -800,6 +800,15 @@ void kbase_csf_ring_csg_slots_doorbell(struct kbase_device *kbdev,
 	if (WARN_ON(slot_bitmap > allowed_bitmap))
 		return;
 
+	/* The access to GLB_DB_REQ/ACK needs to be ordered with respect to CSG_REQ/ACK and
+	 * CSG_DB_REQ/ACK to avoid a scenario where a CSI request overlaps with a CSG request
+	 * or 2 CSI requests overlap and FW ends up missing the 2nd request.
+	 * Memory barrier is required, both on Host and FW side, to guarantee the ordering.
+	 *
+	 * 'osh' is used as CPU and GPU would be in the same Outer shareable domain.
+	 */
+	dmb(osh);
+
 	value = kbase_csf_firmware_global_output(global_iface, GLB_DB_ACK);
 	value ^= slot_bitmap;
 	kbase_csf_firmware_global_input_mask(global_iface, GLB_DB_REQ, value,
@@ -901,6 +910,7 @@ static void unbind_stopped_queue(struct kbase_context *kctx,
 		kbase_csf_scheduler_spin_unlock(kctx->kbdev, flags);
 
 		put_user_pages_mmap_handle(kctx, queue);
+		WARN_ON_ONCE(queue->doorbell_nr != KBASEP_USER_DB_NR_INVALID);
 		queue->bind_state = KBASE_CSF_QUEUE_UNBOUND;
 	}
 }
@@ -1076,7 +1086,7 @@ static int create_normal_suspend_buffer(struct kbase_context *const kctx,
 	/* Get physical page for a normal suspend buffer */
 	err = kbase_mem_pool_alloc_pages(
 			&kctx->mem_pools.small[KBASE_MEM_GROUP_CSF_FW],
-			nr_pages, &s_buf->phy[0], false);
+			nr_pages, &s_buf->phy[0], false,kctx->task);
 
 	if (err < 0)
 		goto phy_pages_alloc_failed;
@@ -3007,7 +3017,7 @@ int kbase_csf_doorbell_mapping_init(struct kbase_device *kbdev)
 
 	ret = kbase_mem_pool_alloc_pages(
 		&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW],
-		1, &phys, false);
+		1, &phys, false,NULL);
 
 	if (ret <= 0) {
 		fput(filp);
@@ -3043,7 +3053,7 @@ int kbase_csf_setup_dummy_user_reg_page(struct kbase_device *kbdev)
 
 	ret = kbase_mem_pool_alloc_pages(
 		&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], 1, &phys,
-		false);
+		false,NULL);
 
 	if (ret <= 0)
 		return ret;

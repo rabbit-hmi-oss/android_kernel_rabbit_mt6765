@@ -389,4 +389,11 @@ int mtk_afe_pcm_copy(struct snd_pcm_substream *substream,
 		     int channel, unsigned long hwoff,
 		     void *buf, unsigned long bytes);
 
+#ifdef MT6771_SND_SOC
+/*4pin I2S*/
+void Enable4pin_I2S0_I2S3(unsigned int SampleRate, bool low_jitter_on, unsigned int wLenBit);
+void Disable4pin_I2S0_I2S3(void);
+#endif
+extern int I2S0_I2S3_4pin_ctrl;
+
 #endif

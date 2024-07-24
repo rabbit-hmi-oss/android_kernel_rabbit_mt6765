@@ -58,6 +58,7 @@ static DEFINE_MUTEX(layering_info_lock);
 #endif
 #define RSZ_IN_MAX_HEIGHT 4096
 #define DISP_RSZ_LAYER_NUM 2
+#define DISP_LAYER_RULE_MAX_NUM 1024
 
 static struct {
 	enum LYE_HELPER_OPT opt;
@@ -753,6 +754,8 @@ static int rollback_to_GPU(struct drm_mtk_layering_info *info, int disp,
 	for (i = info->gles_head[disp]; i <= info->gles_tail[disp]; i++) {
 		l_info = &info->input_config[disp][i];
 		l_info->ext_sel_layer = -1;
+		if (mtk_has_layer_cap(l_info, MTK_DISP_RSZ_LAYER))
+			l_info->layer_caps &= ~MTK_DISP_RSZ_LAYER;
 	}
 
 	if (info->gles_tail[disp] + 1 < info->layer_num[disp]) {
@@ -1807,9 +1810,30 @@ static int _dispatch_lye_blob_idx(struct drm_mtk_layering_info *disp_info,
 	return 0;
 }
 
-static int dispatch_ovl_id(struct drm_mtk_layering_info *disp_info,
-			   struct mtk_drm_lyeblob_ids *lyeblob_ids,
-			   struct drm_device *drm_dev)
+static inline int get_scale_cnt(struct drm_mtk_layering_info *disp_info)
+{
+	int disp_idx, scale_cnt = 0;
+
+	for (disp_idx = 0; disp_idx < HRT_TYPE_NUM; disp_idx++) {
+		struct drm_mtk_layer_config *c;
+		int i = 0;
+
+		if (disp_info->layer_num[disp_idx] <= 0)
+			continue;
+
+		/* check exist clear layer */
+		for (i = 0; i < disp_info->layer_num[disp_idx]; i++) {
+			c = &disp_info->input_config[disp_idx][i];
+			if (mtk_has_layer_cap(c, MTK_DISP_RSZ_LAYER))
+				scale_cnt++;
+		}
+	}
+
+	return scale_cnt;
+}
+
+static int dispatch_gles_range(struct drm_mtk_layering_info *disp_info,
+			struct drm_device *drm_dev)
 {
 	int disp_idx;
 	bool no_disp = true;
@@ -1856,6 +1880,27 @@ static int dispatch_ovl_id(struct drm_mtk_layering_info *disp_info,
 
 	clear_layer(disp_info, drm_dev);
 
+	return 0;
+}
+
+static int dispatch_ovl_id(struct drm_mtk_layering_info *disp_info,
+			   struct mtk_drm_lyeblob_ids *lyeblob_ids,
+			   struct drm_device *drm_dev)
+{
+	bool no_disp = true;
+	int disp_idx;
+
+	for (disp_idx = 0; disp_idx < HRT_TYPE_NUM; disp_idx++)
+		if (disp_info->layer_num[disp_idx] > 0) {
+			no_disp = false;
+			break;
+		}
+
+	if (no_disp) {
+		DDPINFO("There is no disp need dispatch\n");
+		return 0;
+	}
+
 	/* Dispatch OVL id */
 	for (disp_idx = 0; disp_idx < HRT_TYPE_NUM; disp_idx++) {
 		int ovl_cnt;
@@ -1867,6 +1912,7 @@ static int dispatch_ovl_id(struct drm_mtk_layering_info *disp_info,
 		if (disp_info->layer_num[disp_idx] <= 0)
 			continue;
 
+		/* check exist clear layer */
 		for (i = 0; i < disp_info->layer_num[disp_idx]; i++) {
 			c = &disp_info->input_config[disp_idx][i];
 			if (mtk_has_layer_cap(c, MTK_DISP_CLIENT_CLEAR_LAYER)) {
@@ -2050,7 +2096,8 @@ _copy_layer_info_by_disp(struct drm_mtk_layering_info *disp_info_user,
 	unsigned long int layer_size = 0;
 	int ret = 0;
 
-	if (l_info->layer_num[disp_idx] <= 0) {
+	if (l_info->layer_num[disp_idx] <= 0 ||
+			l_info->layer_num[disp_idx] > DISP_LAYER_RULE_MAX_NUM) {
 		/* direct skip */
 		return -EFAULT;
 	}
@@ -2703,6 +2750,12 @@ static int layering_rule_start(struct drm_mtk_layering_info *disp_info_user,
 
 	lyeblob_ids = kzalloc(sizeof(struct mtk_drm_lyeblob_ids), GFP_KERNEL);
 
+	dispatch_gles_range(&layering_info, dev);
+
+	/* adjust scenario after dispatch gles range */
+	scale_num = get_scale_cnt(&layering_info);
+	l_rule_ops->scenario_decision(scn_decision_flag, scale_num);
+
 	ret = dispatch_ovl_id(&layering_info, lyeblob_ids, dev);
 
 	check_layering_result(&layering_info);
@@ -3157,19 +3210,21 @@ int mtk_layering_rule_ioctl(struct drm_device *dev, void *data,
 
 #if IS_ENABLED(CONFIG_COMPAT)
 struct drm_mtk_layering_info_32 {
-	compat_uptr_t input_config[3];
-	int disp_mode[3];
+	compat_uptr_t input_config[LYE_CRTC];
+	int disp_mode[LYE_CRTC];
 	/* index of crtc display mode including resolution, fps... */
-	int disp_mode_idx[3];
-	int layer_num[3];
-	int gles_head[3];
-	int gles_tail[3];
+	int disp_mode_idx[LYE_CRTC];
+	int layer_num[LYE_CRTC];
+	int gles_head[LYE_CRTC];
+	int gles_tail[LYE_CRTC];
 	int hrt_num;
+	uint32_t disp_idx;
+	uint32_t disp_list;
 	/* res_idx: SF/HWC selects which resolution to use */
 	int res_idx;
 	uint32_t hrt_weight;
 	uint32_t hrt_idx;
-	compat_uptr_t mml_frame_info[3];
+	compat_uptr_t mml_frame_info[LYE_CRTC];
 };
 
 int mtk_layering_rule_ioctl_compat(struct file *file, unsigned int cmd,
@@ -3181,7 +3236,7 @@ int mtk_layering_rule_ioctl_compat(struct file *file, unsigned int cmd,
 
 	if (copy_from_user(&data32, (void __user *)arg, sizeof(data32)))
 		return -EFAULT;
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < LYE_CRTC; i++) {
 		data.input_config[i] = compat_ptr(data32.input_config[i]);
 		data.disp_mode[i] = data32.disp_mode[i];
 		data.disp_mode_idx[i] = data32.disp_mode_idx[i];
@@ -3190,6 +3245,8 @@ int mtk_layering_rule_ioctl_compat(struct file *file, unsigned int cmd,
 		data.gles_tail[i] = data32.gles_tail[i];
 	}
 	data.hrt_num = data32.hrt_num;
+	data.disp_idx = data32.disp_idx;
+	data.disp_list = data32.disp_list;
 	data.res_idx = data32.res_idx;
 	data.hrt_weight = data32.hrt_weight;
 	data.hrt_idx = data32.hrt_idx;
@@ -3199,7 +3256,7 @@ int mtk_layering_rule_ioctl_compat(struct file *file, unsigned int cmd,
 	if (err)
 		return err;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < LYE_CRTC; i++) {
 		//data32.input_config[i] = ptr_to_compat(data.input_config[i]);
 		data32.disp_mode[i] = data.disp_mode[i];
 		data32.disp_mode_idx[i] = data.disp_mode_idx[i];
@@ -3208,6 +3265,8 @@ int mtk_layering_rule_ioctl_compat(struct file *file, unsigned int cmd,
 		data32.gles_tail[i] = data.gles_tail[i];
 	}
 	data32.hrt_num = data.hrt_num;
+	data32.disp_idx = data.disp_idx;
+	data32.disp_list = data.disp_list;
 	data32.res_idx = data.res_idx;
 	data32.hrt_weight = data.hrt_weight;
 	data32.hrt_idx = data.hrt_idx;

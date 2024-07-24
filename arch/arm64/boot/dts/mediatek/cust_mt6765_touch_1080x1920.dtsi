@@ -5,6 +5,7 @@
  */
 
 /* TOUCH start */
+
 &i2c0 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default", "ts_int_active",
@@ -27,8 +28,8 @@
 };
 
 &touch {
-	tpd-resolution = <1080 1920>;
-	lcm-resolution = <1080 1920>;
+	tpd-resolution = <480 640>;
+	lcm-resolution = <480 640>;
 	tpd-cfg-version = "config17";
 	tpd-max-touch-num = <10>;
 	interrupt-parent = <&pio>;

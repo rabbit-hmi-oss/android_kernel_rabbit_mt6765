@@ -1187,6 +1187,10 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 	&ili9881c_hd_dsi_vdo_ilitek_nt50358_lcm_drv,
 #endif
 
+#if defined(ILI9882N_HDP_DSI_VDO_RT4801_90HZ)
+	&ili9882n_hdp_dsi_vdo_rt4801_90hz_lcm_drv,
+#endif
+
 #if defined(HX83112B_FHDP_DSI_CMD_AUO_RT4801)
 	&hx83112b_fhdp_dsi_cmd_auo_rt4801_lcm_drv,
 #endif
@@ -1283,6 +1287,18 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #if defined(OTM1911A_FHDP_DSI_VDO_TRULY_RT4801)
 	&otm1911a_fhdp_dsi_vdo_truly_rt4801_lcm_drv,
 #endif
+// mt6768 ref device
+#if defined(NT36672C_FHDP_DSI_VDO_DSC_TXD_BOE)
+	&nt36672c_fhdp_dsi_vdo_dsc_txd_boe_lcm_drv,
+#endif
+
+#if defined(KD070FHFID015_DSI_1200X1920)
+	&kd070fhfid015_dsi_1200x1920_lcm_drv,
+#endif
+
+#if defined(ILI9883_BOE_MIPI_HD)
+	&ili9883_boe_mipi_hd_lcm_drv,
+#endif
 };
 
 unsigned char lcm_name_list[][128] = {
@@ -1358,6 +1374,10 @@ unsigned char lcm_name_list[][128] = {
 
 #if defined(OPPO_TIANMA_TD4310_FHDP_DSI_VDO_RT5081)
 	"oppo_tianma_td4310_fhdp_dsi_vdo_rt5081_drv",
+#endif
+
+#if defined(KD070FHFID015_DSI_1200X1920)
+	"kd070fhfid015_dsi_1200x1920",
 #endif
 };
 

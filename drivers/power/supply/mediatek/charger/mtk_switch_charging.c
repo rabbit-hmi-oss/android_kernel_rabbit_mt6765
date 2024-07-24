@@ -55,6 +55,7 @@
 #include <linux/of.h>
 
 #include <mt-plat/mtk_boot.h>
+#include <mt-plat/v1/mtk_charger.h>
 /* #include <musb_core.h> */ /* FIXME */
 #include "mtk_charger_intf.h"
 #include "mtk_switch_charging.h"
@@ -826,9 +827,19 @@ int charger_dev_event(struct notifier_block *nb, unsigned long event, void *v)
 		pr_info("%s: end of charge\n", __func__);
 		break;
 	case CHARGER_DEV_NOTIFY_RECHG:
+#ifdef CONFIG_TCPC_CLASS
+		if (mt_check_cable_in() > 0) {
+			charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
+			pr_info("%s: recharge\n", __func__);
+			break;
+		}
+		pr_info("%s: cable not in, cannot recharge\n", __func__);
+		break;
+#else
 		charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
 		pr_info("%s: recharge\n", __func__);
 		break;
+#endif
 	case CHARGER_DEV_NOTIFY_SAFETY_TIMEOUT:
 		info->safety_timeout = true;
 		chr_err("%s: safety timer timeout\n", __func__);

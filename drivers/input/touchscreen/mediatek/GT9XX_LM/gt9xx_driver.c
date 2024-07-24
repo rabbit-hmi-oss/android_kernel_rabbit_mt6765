@@ -967,6 +967,9 @@ s32 gtp_read_version(struct i2c_client *client, u16 *version)
 		return ret;
 	}
 
+	if (!version)
+		return ret;
+
 	if (version)
 		*version = (buf[7] << 8) | buf[6];
 
@@ -1664,6 +1667,9 @@ static int tpd_irq_registration(void)
 	if (node) {
 		/*touch_irq = gpio_to_irq(tpd_int_gpio); */
 		touch_irq = irq_of_parse_and_map(node, 0);
+#ifdef CONFIG_GT9XX_LM_ENABLE_8788
+		touch_irq = gpio_to_irq(of_get_named_gpio(node, "int-gpio", 0));
+#endif
 
 		irqf_val =
 			!int_type ? IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
@@ -1777,6 +1783,9 @@ static s32 tpd_i2c_probe(struct i2c_client *client,
 
 	tpd_load_status = 1;
 	GTP_INFO("%s, success run Done", __func__);
+#ifdef CONFIG_GT9XX_LM_ENABLE_8788
+	ret = tpd_power_on(client);
+#endif
 	return 0;
 out:
 	return -1;

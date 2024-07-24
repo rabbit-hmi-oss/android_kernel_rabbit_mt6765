@@ -1162,7 +1162,20 @@ struct file *file, const char __user *buffer, size_t count, loff_t *data)
 			kfree(ptr_mtktsbtscharger_parm_data);
 			return -EINVAL;
 		}
-
+#ifdef CONFIG_MACH_MT6877
+		/* external pin: 0/1/2/3/4/5/6/7/8,
+		 * can't use pin: 9/10/11,
+		 */
+		if (ptr_mtktsbtscharger_parm_data->adc_channel > 8)
+			/* check unsupport pin value, if unsupport,
+			 * set channel as default setting.
+			 */
+			g_RAP_ADC_channel = BTSCHARGER_RAP_ADC_CHANNEL;
+		else {
+			g_RAP_ADC_channel =
+				ptr_mtktsbtscharger_parm_data->adc_channel;
+		}
+#else
 		/* external pin: 0/1/12/13/14/15,
 		 * can't use pin:2/3/4/5/6/7/8/9/10/11,
 		 * choose "adc_channel=11" to check if there is any param input
@@ -1183,6 +1196,7 @@ struct file *file, const char __user *buffer, size_t count, loff_t *data)
 			else
 				g_RAP_ADC_channel = AUX_IN2_NTC;
 		}
+#endif
 		mtktscharger_dprintk("adc_channel=%d\n",
 				ptr_mtktsbtscharger_parm_data->adc_channel);
 		mtktscharger_dprintk("g_RAP_ADC_channel=%d\n",

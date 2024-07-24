@@ -599,12 +599,7 @@ static struct mtk_panel_params ext_params = {
 	.output_mode = MTK_PANEL_DUAL_PORT,
 	.lcm_cmd_if = MTK_PANEL_DUAL_PORT,
 	.cust_esd_check = 0,
-	.esd_check_enable = 0,
-	.lcm_esd_check_table[0] = {
-		.cmd = 0x53,
-		.count = 1,
-		.para_list[0] = 0x24,
-	},
+	.esd_check_enable = 1,
 #if WITH_DSC
 	.dsc_params = {
 		.enable = 1,

@@ -876,7 +876,13 @@ void mtk_vdec_dvfs_begin(struct mtk_vcodec_ctx *ctx, int hw_id)
 	if (ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_HEIF)
 		vdec_req_freq[hw_id] = 546;
 
-	if ((ctx->dec_params.operating_rate > 121 || ctx->dec_params.operating_rate <= 0) &&
+	if (ctx->dec_params.operating_rate <= 0 &&
+		ctx->dec_params.priority >= 0 &&
+		ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_AV1) {
+		vdec_req_freq[hw_id] = 546;
+	}
+
+	if (ctx->dec_params.operating_rate > 121 &&
 	(ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_H264 ||
 	ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_H265 ||
 	ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_VP9 ||
@@ -895,7 +901,25 @@ void mtk_vdec_dvfs_begin(struct mtk_vcodec_ctx *ctx, int hw_id)
 		vdec_req_freq[hw_id] = target_freq_64;
 	}
 
-	if (dev->dec_cnt > 2)
+	if ((ctx->dec_params.operating_rate == 120) &&
+		((ctx->q_data[MTK_Q_DATA_DST].coded_width *
+		ctx->q_data[MTK_Q_DATA_DST].coded_height) >= 1920*1080) &&
+		ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_AV1) {
+		vdec_req_freq[hw_id] = 546;
+	}
+	if (((ctx->q_data[MTK_Q_DATA_DST].coded_width *
+		ctx->q_data[MTK_Q_DATA_DST].coded_height) >= 3840*2160) &&
+		ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_VP9) {
+		vdec_req_freq[hw_id] = 546;
+	}
+	if (((ctx->q_data[MTK_Q_DATA_DST].coded_width *
+		ctx->q_data[MTK_Q_DATA_DST].coded_height) >= 1920*1080) &&
+		ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc == V4L2_PIX_FMT_MPEG4 &&
+		ctx->dec_params.operating_rate == 60) {
+		vdec_req_freq[hw_id] = 416;
+	}
+
+	if (dev->dec_cnt > 5)
 		vdec_req_freq[hw_id] = 546;
 
 	vdec_freq = vdec_req_freq[0] > vdec_req_freq[1] ?
@@ -941,7 +965,7 @@ void mtk_vdec_dvfs_end(struct mtk_vcodec_ctx *ctx, int hw_id)
 		vdec_req_freq[hw_id] = 546;
 	}
 
-	if (dev->dec_cnt > 2)
+	if (dev->dec_cnt > 5)
 		vdec_req_freq[hw_id] = 546;
 
 	mtk_pm_qos_update_request(&vdec_qos_req_f, vdec_freq);
