@@ -661,7 +661,7 @@
 	status = "okay";
 };
 
-#include "k65v1_64_bsp/cust.dtsi"
+#include "mediatek/r1/cust.dtsi"
 #include "mediatek/cust_mt6765_camera.dtsi"
 #include "mediatek/cust_mt6765_touch_1080x1920.dtsi"
 /*End of this file, DO NOT ADD ANYTHING HERE*/
