@@ -20,7 +20,6 @@ struct mtk_extcon_info {
 	struct power_supply *usb_psy;
 	struct notifier_block psy_nb;
 	struct delayed_work wq_detcable;
-	struct delayed_work snd_usb_device_det_wk;
 #ifdef CONFIG_TCPC_CLASS
 	struct tcpc_device *tcpc_dev;
 	struct notifier_block tcpc_nb;

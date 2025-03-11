@@ -52,9 +52,9 @@
 			 * PPS 3V~5.9V, 3A <0xC0761E3C>
 			 */
 			pd,source-pdo-size = <1>;
-			pd,source-pdo-data = <0x00019032>; /* 5V, 500 mA */
+			pd,source-pdo-data = <0x00019096>; /* 5V, 1500 mA */
 			pd,sink-pdo-size = <1>;
-			pd,sink-pdo-data = <0x00019064>;
+			pd,sink-pdo-data = <0x000190c8>;
 
 			/*
 			 * No DP, host + device

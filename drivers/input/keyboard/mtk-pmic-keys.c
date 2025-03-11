@@ -370,6 +370,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 	}
 
 	input_dev->name = "mtk-pmic-keys";
+	input_dev->phys = "mtk-pmic-keys";
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;

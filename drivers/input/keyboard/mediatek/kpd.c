@@ -379,6 +379,7 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 	}
 
 	kpd_input_dev->name = KPD_NAME;
+	kpd_input_dev->phys = KPD_NAME;
 	kpd_input_dev->id.bustype = BUS_HOST;
 	kpd_input_dev->id.vendor = 0x2454;
 	kpd_input_dev->id.product = 0x6500;

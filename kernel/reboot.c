@@ -282,8 +282,13 @@ EXPORT_SYMBOL_GPL(kernel_halt);
  *
  *	Shutdown everything and perform a clean system power_off.
  */
+extern void mtk_rtc_set_power_off_flag(bool flag);
 void kernel_power_off(void)
 {
+#if 1
+	mtk_rtc_set_power_off_flag(true);
+	kernel_restart("PowerOff");
+#else
 	kernel_shutdown_prepare(SYSTEM_POWER_OFF);
 	if (pm_power_off_prepare)
 		pm_power_off_prepare();
@@ -292,6 +297,7 @@ void kernel_power_off(void)
 	pr_emerg("Power down\n");
 	kmsg_dump(KMSG_DUMP_POWEROFF);
 	machine_power_off();
+#endif
 }
 EXPORT_SYMBOL_GPL(kernel_power_off);
 

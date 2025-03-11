@@ -310,6 +310,7 @@ MODULE_DEVICE_TABLE(of, mt6397_rtc_of_match);
 static int rtc_eosc_cali_td;
 module_param(rtc_eosc_cali_td, int, 0644);
 
+static bool power_off_flag = false;
 static int rtc_show_time;
 static int rtc_show_alarm = 1;
 static int alarm1m15s;
@@ -1440,6 +1441,12 @@ static void mtk_rtc_lpsd(struct device *dev)
 		pr_notice("RTC_IRQ_EN = 0x%x\n", reg);
 }
 
+void mtk_rtc_set_power_off_flag(bool flag)
+{
+	power_off_flag = flag;
+}
+EXPORT_SYMBOL_GPL(mtk_rtc_set_power_off_flag);
+
 static void mtk_rtc_shutdown(struct platform_device *pdev)
 {
 	struct mt6397_rtc *rtc = dev_get_drvdata(&pdev->dev);
@@ -1449,6 +1456,9 @@ static void mtk_rtc_shutdown(struct platform_device *pdev)
 	ktime_t ktime_alarm;
 	bool is_pwron_alarm;
 
+	if (power_off_flag) {
+		rtc_mark_kpoc(rtc);
+	}
 	if (alarm1m15s == 1) {
 		is_pwron_alarm = mtk_rtc_is_pwron_alarm(rtc,
 			&rtc_time_now, &rtc_time_alarm);

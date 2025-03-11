@@ -30,13 +30,6 @@
 #include "mux_switch.h"
 #endif
 
-#if defined ADAPT_CHARGER_V1
-#include <mt-plat/v1/charger_class.h>
-static struct charger_device *primary_charger;
-#endif
-
-extern bool snd_usb_is_actived(void);
-extern bool hidinput_is_actived(void);
 static struct mtk_extcon_info *g_extcon;
 
 static const unsigned int usb_extcon_cable[] = {
@@ -44,25 +37,6 @@ static const unsigned int usb_extcon_cable[] = {
 	EXTCON_USB_HOST,
 	EXTCON_NONE,
 };
-
-static void mtk_usb_extcon_snd_usb_dev_det(struct work_struct *work)
-{
-	struct mtk_extcon_info *extcon = container_of(to_delayed_work(work),
-					struct mtk_extcon_info, snd_usb_device_det_wk);
-	bool usb_device_actived = false;
-
-	usb_device_actived = snd_usb_is_actived() | hidinput_is_actived();
-	if (!usb_device_actived) {
-#if defined ADAPT_CHARGER_V1
-		if (primary_charger)
-			charger_dev_enable_otg(primary_charger, false);
-#else
-		if (extcon->vbus)
-			regulator_disable(extcon->vbus);
-#endif
-		dev_info(extcon->dev, "not usb audio device, disable otg!\n");
-	}
-}
 
 static void mtk_usb_extcon_update_role(struct work_struct *work)
 {
@@ -270,6 +244,9 @@ static int mtk_usb_extcon_psy_init(struct mtk_extcon_info *extcon)
 }
 
 #if defined ADAPT_CHARGER_V1
+#include <mt-plat/v1/charger_class.h>
+static struct charger_device *primary_charger;
+
 static int mtk_usb_extcon_set_vbus_v1(bool is_on) {
 	if (!primary_charger) {
 		primary_charger = get_charger_by_name("primary_chg");
@@ -306,11 +283,6 @@ static int mtk_usb_extcon_set_vbus_v1(bool is_on) {
 		charger_dev_enable_otg(primary_charger, false);
 	}
 #endif
-	if (is_on) {
-		schedule_delayed_work(&extcon->snd_usb_device_det_wk, 3*HZ);
-	} else {
-		cancel_delayed_work_sync(&extcon->snd_usb_device_det_wk);
-	}
 		return 0;
 }
 #endif //ADAPT_CHARGER_V1
@@ -325,11 +297,6 @@ static int mtk_usb_extcon_set_vbus(struct mtk_extcon_info *extcon,
 	struct regulator *vbus = extcon->vbus;
 	struct device *dev = extcon->dev;
 
-	if (is_on) {
-		schedule_delayed_work(&extcon->snd_usb_device_det_wk, 3*HZ);
-	} else {
-		cancel_delayed_work_sync(&extcon->snd_usb_device_det_wk);
-	}
 	/* vbus is optional */
 	if (!vbus || extcon->vbus_on == is_on)
 		return 0;
@@ -626,7 +593,6 @@ static int mtk_usb_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	INIT_DELAYED_WORK(&extcon->snd_usb_device_det_wk, mtk_usb_extcon_snd_usb_dev_det);
 	ret = devm_extcon_dev_register(dev, extcon->edev);
 	if (ret < 0) {
 		dev_info(dev, "failed to register extcon device\n");
@@ -774,4 +740,3 @@ static void __exit mtk_usb_extcon_exit(void)
 	platform_driver_unregister(&mtk_usb_extcon_driver);
 }
 module_exit(mtk_usb_extcon_exit);
-

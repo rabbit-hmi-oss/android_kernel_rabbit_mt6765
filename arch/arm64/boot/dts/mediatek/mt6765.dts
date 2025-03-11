@@ -1031,11 +1031,11 @@ firmware_class.path=/vendor/firmware";
 	accdet: accdet {
 		compatible = "mediatek,pmic-accdet";
 	};
-/*
+
 	goodix_fp: fingerprint {
 		compatible = "mediatek,goodix-fp";
 	};
-*/
+
 	topmisc@10011000 {
 		compatible = "mediatek,topmisc";
 		reg = <0 0x10011000 0 0x1000>;
@@ -3571,13 +3571,13 @@ firmware_class.path=/vendor/firmware";
 
 	tcpc_pd: mt6370_pd_eint {
 	};
-/*
+
 	irtx_pwm:irtx_pwm {
 		compatible = "mediatek,irtx-pwm";
 		pwm_ch = <0>;
 		pwm_data_invert = <0>;
 	};
-*/
+
 	odm: odm{
 		compatible = "simple-bus";
 		/* reserved for overlay by odm */

@@ -265,6 +265,7 @@ static int kpd_pdrv_probe(struct platform_device *pdev)
 	}
 
 	keypad->input_dev->name = KPD_NAME;
+	keypad->input_dev->phys = KPD_NAME;
 	keypad->input_dev->id.bustype = BUS_HOST;
 	keypad->input_dev->dev.parent = &pdev->dev;
 

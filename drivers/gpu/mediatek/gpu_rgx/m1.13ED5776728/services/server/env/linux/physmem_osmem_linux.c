@@ -508,6 +508,9 @@ _ScanObjectsInPagePool(struct shrinker *psShrinker, struct shrink_control *psShr
 		/* Remove item from pool */
 		list_del(&psUnpinEntry->sUnpinPoolItem);
 
+		/* The LinuxUnpinEntry object can be now freed */
+		OSFreeMem(psUnpinEntry);
+
 		g_ui32UnpinPageCount -= uiNumPages;
 
 		/* Check if there is more to free or if we already surpassed the limit */
@@ -1421,6 +1424,11 @@ _AllocOSPageArray(PVRSRV_DEVICE_NODE *psDevNode,
 				eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 				goto e_free_cpuvirtaddrarray;
 			}
+		}
+		else
+		{
+			psPageArrayData->dmavirtarray = NULL;
+			psPageArrayData->dmaphysarray = NULL;
 		}
 	}
 
@@ -2597,6 +2605,16 @@ _FreeOSPagesArray(PMR_OSPAGEARRAY_DATA *psPageArrayData)
 		OSFreeMemNoStats(psPageArrayData->pagearray);
 	}
 
+	/* Check if we need to free additional DMA/CMA cpu kernel virtual address & device bus address arrays */
+	if (psPageArrayData->dmaphysarray != NULL)
+	{
+		OSFreeMemNoStats(psPageArrayData->dmaphysarray);
+	}
+	if (psPageArrayData->dmavirtarray != NULL)
+	{
+		OSFreeMemNoStats(psPageArrayData->dmavirtarray);
+	}
+
 	kmem_cache_free(g_psLinuxPageArray, psPageArrayData);
 
 	return PVRSRV_OK;
@@ -3449,7 +3467,7 @@ PMRChangeSparseMemOSMem(PMR_IMPL_PRIVDATA pPriv,
 			{
 				uiFreepgidx = pai32FreeIndices[ui32Loop];
 
-				if (uiFreepgidx > (psPMRPageArrayData->uiTotalNumOSPages >> uiOrder))
+				if (uiFreepgidx >= (psPMRPageArrayData->uiTotalNumOSPages >> uiOrder))
 				{
 					eError = PVRSRV_ERROR_DEVICEMEM_OUT_OF_RANGE;
 					goto e0;
@@ -3480,7 +3498,7 @@ PMRChangeSparseMemOSMem(PMR_IMPL_PRIVDATA pPriv,
 	{
 		uiAllocpgidx = pai32AllocIndices[ui32Loop];
 
-		if (uiAllocpgidx > (psPMRPageArrayData->uiTotalNumOSPages >> uiOrder))
+		if (uiAllocpgidx >= (psPMRPageArrayData->uiTotalNumOSPages >> uiOrder))
 		{
 			eError = PVRSRV_ERROR_DEVICEMEM_OUT_OF_RANGE;
 			goto e0;

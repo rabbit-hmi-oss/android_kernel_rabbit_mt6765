@@ -490,6 +490,7 @@ static int och1970_probe(struct i2c_client *client, const struct i2c_device_id *
 	}
 	och1970->input = input;
 	input->name = "och1970_holl_key";
+	input->phys = "och1970_holl_key";
 	__set_bit(EV_KEY, input->evbit);
 	__set_bit(KEY_UP, input->keybit);
 	__set_bit(KEY_DOWN, input->keybit);

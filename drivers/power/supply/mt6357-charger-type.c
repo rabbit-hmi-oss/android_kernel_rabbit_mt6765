@@ -147,7 +147,7 @@ unsigned int bc11_get_register_value(struct regmap *map,
 static void hw_bc11_init(struct mtk_charger_type *info)
 {
 #if IS_ENABLED(CONFIG_USB_MTK_HDRC)
-	int timeout = 0;//200;/* ignore usb state */
+	int timeout = 200;
 #endif
 	msleep(200);
 	if (info->first_connect == true) {

@@ -129,7 +129,7 @@
 		reg = <0x0d>;
 		reset-gpio = <&pio 173 0x0>;
 	};
-/*
+
 	aw37004@28 {
 		compatible = "awinic,aw37004";
 		reg = <0x28>;
@@ -180,7 +180,6 @@
 			ilimit-ua = <480000>;
 		};
 	};
-*/
 };
 
 &i2c0 {
@@ -275,7 +274,7 @@
 };
 /* accdet end */
 
-/* FINGERPRINT start 
+/* FINGERPRINT start */
 &spi0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -284,6 +283,17 @@
 		reg = <0>;
 		spi-max-frequency = <8000000>;
 		netlink-event = <30>;
+		status = "okay";
+	};
+};
+
+&spi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cap_touch@0{
+		compatible = "mediatek,cap_touch";
+		reg = <0x0>;
+		spi-max-frequency = <8000000>;
 		status = "okay";
 	};
 };
@@ -314,20 +324,9 @@
 		};
 	};
 };
- FINGERPRINT end */
+/* FINGERPRINT end */
 
-&spi1 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	cap_touch@0{
-		compatible = "mediatek,cap_touch";
-		reg = <0x0>;
-		spi-max-frequency = <8000000>;
-		status = "okay";
-	};
-};
-
-/* IRTX GPIO end 
+/* IRTX GPIO end */
 &irtx_pwm {
 	pinctrl-names = "irtx_gpio_led_default", "irtx_gpio_led_set";
 	pinctrl-0 = <&irtx_gpio_led_default>;
@@ -353,7 +352,7 @@
 		};
 	};
 };
- IRTX GPIO Settings -End */
+/* IRTX GPIO Settings -End */
 
 /* AUDIO GPIO standardization */
 &audgpio {
